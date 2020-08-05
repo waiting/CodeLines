@@ -1,0 +1,26 @@
+CodeLines 源代码行数统计工具（文本文件行数统计工具） - WT特别制作
+
+调用命令格式:
+CodeLines ext1 ext2 ext3 ext4 ... {-|+} searchpath ...
+
+extN:为文件扩展名，本程序会搜索此扩展名的文件，可给定多个扩展名。
++ or -:为是否搜索子文件夹，+为不搜索，意味不展开子文件夹，-为搜索，意味展开子文件夹。
+searchpath:为搜索路径，至少需要指定一个搜索路径，本程序会递归搜索该路径下所有给定扩展名的文件，可给定多个路径。
+
+注意:
+当模式是-时，会展开子文件夹。
+searchpath不得有包含情况，否则会重复统计文件。譬如
+C:\aaa\bbb C:\aaa\bbb\ccc
+上面两个路径，前面的路径已经包含后面的路径，所以后面路径不需要指定，否则重复。
+当模式是+时，不会展开子文件夹，因此，上述的路径不会重复统计。
+
+例子:
+
+1. 统计当前路径下的cpp,c,h文件行:
+CodeLines cpp c h - .
+
+2. 统计C:\Project下的cpp,c,h行:
+CodeLines cpp c h - C:\Project
+
+3. 统计C:\Project,D:\Project,E:\Project下的cpp,c,h行:
+CodeLines cpp c h - C:\Project D:\Project E:\Project
