@@ -3,7 +3,7 @@
 #include <regex>
 using namespace std;
 
-#include "process_code.hpp"
+#include "functional.hpp"
 
 ushort fgColor[] = {
     fgBlack,
@@ -46,38 +46,108 @@ ushort bgColor[] = {
 /**
     统计代码行数
     调用命令格式:
-    CodeLines [--m] [--l] ext1 [ext2] [ext3] ... {-|+} search_path ... [-o output_path[/{name}_t.{ext}] ] [-i indir_output_path[/{name}_t.{ext}] ]
+    CodeLines [--m] [--l] [--re] ext1 [ext2] [ext3] ... <-|+> search_path ... [-o output_path[</|:>{name}.{ext}]]
 
-        --m: 统计注释的行数
-        --l: 统计空行的行数
-        ext1,ext2,ext3: 可以是正则表达式，匹配文件名。（如果要匹配扩展名可以末尾加$，ext$）
-        -: 表示递归搜索指定的路径列表
-        +: 表示搜索指定的路径列表，不搜索子文件夹
-        search_path: 搜索路径
-        -o: 基于当前目录，在output_path目录输出处理后的代码，文件命名规则由{name} {ext}指定
-        -i: 基于代码所在目录，在indir_output_path目录输出处理后的代码，文件命名规则由{name} {ext}指定
+    --m:
+        统计注释的行数
+    --l:
+        统计空行的行数
+    --re:
+        使用正则表达式
+    ext1 ext2 ext3 ...:
+        当有--re时可以是正则表达式，匹配文件名。（如果要匹配扩展名可以末尾加$，ext$）
+    -:
+        表示递归搜索指定的路径列表
+    +:
+        表示搜索指定的路径列表，不搜索子文件夹
+    search_path ...:
+        搜索路径
+    -o:
+        基于当前目录，在output_path目录进行输出。
+        当使用 / 模式时，在output_path目录输出处理后的源代码文件。
+        当使用 : 模式时，在output_path目录按原有的目录结构输出处理后的源代码文件。
+        源代码文件命名规则由之后的字符串指定，可使用的变量为{name}、{ext}，分别表示文件名和扩展名。
 
 */
 
+bool AnalyzeParams( CommandLineVars const & cmdVars, StringArray * patterns, String * searchMode, StringArray * searchPaths )
+{
+    int k = 0;
+    for ( ; k < cmdVars.getValuesCount(); k++ )
+    {
+        thread_local regex re("\\+|\\-");
+        String v = cmdVars.getValue(k);
+        if ( regex_match( v, re ) )
+        {
+            *searchMode = v;
+            break;
+        }
+    }
+    if ( searchMode->empty() )
+    {
+        cerr << ConsoleColor( fgRed, "未指定搜索指定路径的方式: + 或 -" ) << endl;
+        return false;
+    }
+
+    for ( int t = 0; t < k; t++ )
+    {
+        patterns->push_back( cmdVars.getValue(t) );
+    }
+    if ( patterns->empty() )
+    {
+        cerr << ConsoleColor( fgRed, "未指定匹配文件的模式: 扩展名 或 正则表达式" ) << endl;
+        return false;
+    }
+
+    for ( int l = k + 1; l < cmdVars.getValuesCount(); l++ )
+    {
+        searchPaths->push_back( cmdVars.getValue(l) );
+    }
+    if ( searchPaths->empty() )
+    {
+        cerr << ConsoleColor( fgRed, "未指定搜索路径" ) << endl;
+        return false;
+    }
+
+    return true;
+}
+
 int main( int argc, char const * argv[] )
 {
-    CommandLineVars cmdVars( argc, argv, "-o,-i", "", "--m,--l" );
+    CommandLineVars cmdVars( argc, argv, "-o", "", "--m,--l,--re" );
     ProcessContext ctx = { 0 };
     ctx.m = cmdVars.hasFlag("--m");
     ctx.l = cmdVars.hasFlag("--l");
+    ctx.re = cmdVars.hasFlag("--re");
+    ctx.outputPath = cmdVars.getParam( "-o", "" );
+    ctx.inDirOutputPath = cmdVars.getParam( "-i", "" );
+
+    StringArray patterns, searchPaths;
+    String searchMode;
+    if ( !AnalyzeParams( cmdVars, &patterns, &searchMode, &searchPaths ) )
+    {
+        return 1;
+    }
+    cout << patterns << endl;
+    cout << searchMode << endl;
+    cout << searchPaths << endl;
+
+    //FolderData();
+    //regex_search()
+    //regex_match()
 
     //ConvFrom<UnicodeString> cfu("UCS-2LE");
     //cout << cfu.convert(L"你好");
-    File f("main.cpp","r");
-    String pureCode;
-    Process_CodeText( &ctx, f.buffer(), &pureCode );
+    //File f("main.cpp","r");
+    //String pureCode;
+    //Process_CodeText( &ctx, f.buffer(), &pureCode );
     //String localCode = LocalFromUtf8(pureCode);
-    FilePutContents( "main_nocomment.cpp", pureCode );
+    //FilePutContents( "main_nocomment.cpp", pureCode );
     //FilePutContents( "main_nocomment1.cpp", localCode );
     //auto localCode = FileGetContents("main_nocomment.cpp");
-    cout << LocalFromUtf8(pureCode);
+    //cout << LocalFromUtf8(pureCode);
 
-    for ( int i = 0; i < 0x10; i++ )
+    /*for ( int i = 0; i < 0x10; i++ )
     {
         for ( int j = 0; j < 0x10; j++ )
         {
@@ -86,7 +156,8 @@ int main( int argc, char const * argv[] )
             cout << ConsoleColor( attr, s );
         }
         cout  << endl;
-    }
+    }//*/
+
 
     return 0;
 }

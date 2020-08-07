@@ -180,10 +180,10 @@
     <ClCompile Include="..\..\FCGI-Projects\components\winux\src\utilities.cpp" />
     <ClCompile Include="..\..\FCGI-Projects\components\winux\src\zip.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="process_code.cpp" />
+    <ClCompile Include="functional.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="process_code.hpp" />
+    <ClInclude Include="functional.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

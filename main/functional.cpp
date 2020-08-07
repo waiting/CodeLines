@@ -1,4 +1,5 @@
-﻿#include "process_code.hpp"
+﻿#include "functional.hpp"
+
 // 处理字符串
 void Process_String( ProcessContext * ctx, String const & codeText, String::size_type * pI )
 {
@@ -99,7 +100,7 @@ void Process_BlockComment( ProcessContext * ctx, String const & codeText, String
 }
 
 // 处理代码，输出处理后的代码
-void Process_CodeText( ProcessContext * ctx, String const & codeText, String * pOutputCode )
+void ProcessCode( ProcessContext * ctx, String const & codeText, String * pOutputCode )
 {
     String & outputCode = *pOutputCode;
     String::size_type prevPos = 0; // 上一次位置
@@ -181,19 +182,19 @@ void Process_CodeText( ProcessContext * ctx, String const & codeText, String * p
 uint CalcLines( String const & codeText )
 {
     uint lines = 0;
-    String::size_type i = 0, lastLnPos = String::npos;
+    String::size_type i = 0, lastNlPos = String::npos;
 
     while ( i < codeText.length() )
     {
         if ( codeText[i] == '\n' )
         {
-            lastLnPos = i;
+            lastNlPos = i;
             lines++;
         }
 
         i++;
     }
-    if ( lastLnPos != codeText.length() - 1 )
+    if ( lastNlPos != codeText.length() - 1 )
     {
         lines++;
     }

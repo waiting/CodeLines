@@ -63,12 +63,12 @@
     <ClCompile Include="..\..\FCGI-Projects\components\winux\src\zip.cpp">
       <Filter>源文件\winux</Filter>
     </ClCompile>
-    <ClCompile Include="process_code.cpp">
+    <ClCompile Include="functional.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="process_code.hpp">
+    <ClInclude Include="functional.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
