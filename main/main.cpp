@@ -1,6 +1,7 @@
 ﻿#include <iostream>
 #include <functional>
 #include <regex>
+#include <atomic>
 using namespace std;
 
 #include "functional.hpp"
@@ -64,8 +65,8 @@ ushort bgColor[] = {
         搜索路径
     -o:
         基于当前目录，在output_path目录进行输出。
-        当使用 / 模式时，在output_path目录输出处理后的源代码文件。
-        当使用 : 模式时，在output_path目录按原有的目录结构输出处理后的源代码文件。
+        当使用 / 时，在output_path目录输出处理后的源代码文件。
+        当使用 : 时，在output_path目录按原有的目录结构输出处理后的源代码文件。
         源代码文件命名规则由之后的字符串指定，可使用的变量为{name}、{ext}，分别表示文件名和扩展名。
 
 */
@@ -112,6 +113,20 @@ bool AnalyzeParams( CommandLineVars const & cmdVars, StringArray * patterns, Str
     return true;
 }
 
+int SearchCodeFiles( ProcessContext * ctx, vector<regex> const & rePatterns, String const & searchMode, StringArray const & searchPaths, vector<StringArray> * codeFiles )
+{
+    int filesCount = 0;
+
+    for ( StringArray::size_type i = 0; i < searchPaths.size(); ++i )
+    {
+        StringArray files, folders;
+        FolderData( searchPaths[i], &files, &folders );
+        cout << files << folders;
+    }
+
+    return filesCount;
+}
+
 int main( int argc, char const * argv[] )
 {
     CommandLineVars cmdVars( argc, argv, "-o", "", "--m,--l,--re" );
@@ -131,6 +146,17 @@ int main( int argc, char const * argv[] )
     cout << patterns << endl;
     cout << searchMode << endl;
     cout << searchPaths << endl;
+
+
+    // build regex expr
+    vector<regex> rePatterns;
+    for ( auto it = patterns.begin(); it != patterns.end(); it++ )
+    {
+        rePatterns.emplace_back( ( ctx.re ? *it : (*it) + "$" ) );
+    }
+
+    vector<StringArray> codeFiles;
+    SearchCodeFiles( &ctx, rePatterns, searchMode, searchPaths, &codeFiles );
 
     //FolderData();
     //regex_search()
