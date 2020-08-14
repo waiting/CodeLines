@@ -44,6 +44,10 @@ ushort bgColor[] = {
     bgWhite,
 };
 
+ushort fgColorForPatterns[] = {
+    fgAqua, fgRed, fgYellow, fgGreen, fgWhite, fgFuchsia, fgBlue, fgTeal, fgMaroon, fgOlive, fgAtrovirens, fgSilver, fgPurple, fgGray
+};
+
 /**
     统计代码行数
     调用命令格式:
@@ -113,18 +117,124 @@ bool AnalyzeParams( CommandLineVars const & cmdVars, StringArray * patterns, Str
     return true;
 }
 
-int SearchCodeFiles( ProcessContext * ctx, vector<regex> const & rePatterns, String const & searchMode, StringArray const & searchPaths, vector<StringArray> * codeFiles )
+int DoScanCodeFiles(
+    ProcessContext * ctx,
+    vector<regex> const & rePatterns,
+    String const & searchMode,
+    String searchTopDir, ///< 记录搜索起始的顶层目录
+    StringArray const & searchPaths,
+    std::function< void ( String const & topDir, size_t patternIndex, String const & path, String const & fileName ) > func
+)
 {
     int filesCount = 0;
-
-    for ( StringArray::size_type i = 0; i < searchPaths.size(); ++i )
+    for ( auto const & searchPath : searchPaths )
     {
-        StringArray files, folders;
-        FolderData( searchPaths[i], &files, &folders );
-        cout << files << folders;
+        if ( searchTopDir.empty() ) searchTopDir = PathNoSep(searchPath);
+
+        StringArray files, subDirs;
+        FolderData( searchPath, &files, &subDirs );
+        for ( vector<regex>::size_type i = 0; i < rePatterns.size(); i++ )
+        {
+            for ( auto const & fileName : files )
+            {
+                if ( regex_search( fileName, rePatterns[i] ) )
+                {
+                    func( searchTopDir, i, searchPath, fileName );
+                    filesCount++;
+                }
+            }
+        }
+
+        if ( searchMode == "+" )
+        {
+        }
+        else if ( searchMode == "-" )
+        {
+            transform( subDirs.begin(), subDirs.end(), subDirs.begin(), [searchPath] ( auto & subFolder ) { return searchPath + DirSep + subFolder; } );
+            filesCount += DoScanCodeFiles( ctx, rePatterns, searchMode, searchTopDir, subDirs, func );
+        }
     }
 
     return filesCount;
+}
+
+void TryOutputFile( ProcessContext * ctx, String const & searchTopDir, size_t patternIndex, String const & path, String const & fileName )
+{
+    String ext; // 扩展名
+    String fileTitle = FileTitle( fileName, &ext ); // 文件名
+
+    MultiMatch mmr;
+    mmr.addMatchReplacePair( "{name}", fileTitle );
+    mmr.addMatchReplacePair( "{ext}", ext );
+
+    String outputDir, outputFile;
+    String::size_type pos;
+    if ( ctx->outputPath.empty() ) // 不输出文件
+    {
+    }
+    else if ( ( pos = ctx->outputPath.rfind( ':' ) ) != String::npos ) // 含有 ':' 在指定目录按代码原有目录结构输出
+    {
+        outputDir = ctx->outputPath.substr( 0, pos ); // "";
+        outputFile = ctx->outputPath.substr( pos + 1 );
+        if ( outputFile.empty() ) outputFile = fileName;
+        outputFile = mmr.replace(outputFile);
+
+        //计算相对于topDir目录的结构
+        if ( strncmp( searchTopDir.c_str(), path.c_str(), searchTopDir.length() ) == 0 )
+        {
+            String tPath = path.substr( searchTopDir.length() );
+            if ( !tPath.empty() && ( tPath[0] == '/' || tPath[0] == '\\' ) )
+                tPath = tPath.substr(1);
+
+            outputDir = CombinePath( outputDir, tPath );
+        }
+        //输出文件
+        cout << searchTopDir << " : " << CombinePath( path, fileName ) << " => " << CombinePath(outputDir,outputFile) << endl;
+
+
+    }
+    else if ( ( ( pos = ctx->outputPath.rfind( '/' ) ) != String::npos || ( pos = ctx->outputPath.rfind( '\\' ) ) != String::npos ) ) // 含有 '/' 或 '\\' 在指定目录输出
+    {
+        if ( pos == ctx->outputPath.length() - 1 ) // '/'在末尾
+        {
+            if ( pos == 0 ) // '/'也在开头，说明只有一个'/'
+            {
+                outputDir = ctx->outputPath.substr( 0, pos ); // "";
+                outputFile = fileName;
+            }
+            else // 
+            {
+                outputDir = ctx->outputPath.substr( 0, pos );
+                outputFile = fileName;
+            }
+        }
+        else
+        {
+            bool isdir = false;
+            DetectPath( ctx->outputPath, &isdir );
+            if ( isdir )
+            {
+                outputDir = ctx->outputPath;
+                outputDir = fileName;
+            }
+            else
+            {
+                String lastPart = ctx->outputPath.substr( pos + 1 );
+                if ( lastPart.find('.') != String::npos ) // 如果搜到.，则lastPart当成文件名
+                {
+                    outputDir = ctx->outputPath.substr( 0, pos );
+                    outputFile = mmr.replace(lastPart);
+                }
+                else
+                {
+                    outputDir = ctx->outputPath;
+                    outputFile = fileName;
+                }
+            }
+        }
+        //输出文件
+        cout << CombinePath(outputDir,outputFile) << endl;
+    }
 }
 
 int main( int argc, char const * argv[] )
@@ -135,7 +245,6 @@ int main( int argc, char const * argv[] )
     ctx.l = cmdVars.hasFlag("--l");
     ctx.re = cmdVars.hasFlag("--re");
     ctx.outputPath = cmdVars.getParam( "-o", "" );
-    ctx.inDirOutputPath = cmdVars.getParam( "-i", "" );
 
     StringArray patterns, searchPaths;
     String searchMode;
@@ -148,16 +257,22 @@ int main( int argc, char const * argv[] )
     cout << searchPaths << endl;
 
 
-    // build regex expr
+    // 构建正则表达式对象
     vector<regex> rePatterns;
     for ( auto it = patterns.begin(); it != patterns.end(); it++ )
     {
-        rePatterns.emplace_back( ( ctx.re ? *it : (*it) + "$" ) );
+        rePatterns.emplace_back( ( ctx.re ? *it : "\\." + (*it) + "$" ) );
     }
 
-    vector<StringArray> codeFiles;
-    SearchCodeFiles( &ctx, rePatterns, searchMode, searchPaths, &codeFiles );
+    // 扫描文件
+    DoScanCodeFiles( &ctx, rePatterns, searchMode, "", searchPaths, [ &ctx, &patterns ] (auto && topDir, auto i, auto path, auto && f ) {
+        auto fg = fgColorForPatterns[i % countof(fgColorForPatterns)];
+        cout << ConsoleColor( fg, patterns[i] ) << "：" << ConsoleColor( fg, NormalizePath( CombinePath( path, f ) ) ) << endl;
 
+        TryOutputFile( &ctx, topDir, i, path, f );
+    } );
+
+    //cout << codeFiles << endl;
     //FolderData();
     //regex_search()
     //regex_match()
@@ -172,17 +287,6 @@ int main( int argc, char const * argv[] )
     //FilePutContents( "main_nocomment1.cpp", localCode );
     //auto localCode = FileGetContents("main_nocomment.cpp");
     //cout << LocalFromUtf8(pureCode);
-
-    /*for ( int i = 0; i < 0x10; i++ )
-    {
-        for ( int j = 0; j < 0x10; j++ )
-        {
-            ushort attr = fgColor[i] | bgColor[ 15 - j ];
-            auto s = Format( "%02X", attr );
-            cout << ConsoleColor( attr, s );
-        }
-        cout  << endl;
-    }//*/
 
 
     return 0;
