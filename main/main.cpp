@@ -1,4 +1,31 @@
-﻿#include "functional.hpp"
+﻿/**
+    统计代码行数
+    调用命令格式:
+    CodeLines [--m] [--l] [--re] ext1 [ext2] [ext3] ... <-|+> search_path ... [-o output_path[</|:>{name}.{ext}]]
+
+    --m:
+        统计注释的行数
+    --l:
+        统计空行的行数
+    --re:
+        使用正则表达式
+    ext1 ext2 ext3 ...:
+        当有--re时可以是正则表达式，匹配文件名。（如果要匹配扩展名可以末尾加$，ext$）
+    -:
+        表示递归搜索指定的路径列表
+    +:
+        表示搜索指定的路径列表，不搜索子文件夹
+    search_path ...:
+        搜索路径
+    -o:
+        基于当前目录，在output_path目录进行输出。
+        当使用 / 时，在output_path目录输出处理后的源代码文件。
+        当使用 : 时，在output_path目录按原有的目录结构输出处理后的源代码文件。
+        源代码文件命名规则由之后的字符串指定，可使用的变量为{name}、{ext}，分别表示文件名和扩展名。
+
+*/
+
+#include "functional.hpp"
 using namespace std;
 
 ushort fgColor[] = {
@@ -43,33 +70,13 @@ ushort fgColorForPatterns[] = {
     fgAqua, fgRed, fgYellow, fgGreen, fgWhite, fgFuchsia, fgBlue, fgTeal, fgMaroon, fgOlive, fgAtrovirens, fgSilver, fgPurple, fgGray
 };
 
-/**
-    统计代码行数
-    调用命令格式:
-    CodeLines [--m] [--l] [--re] ext1 [ext2] [ext3] ... <-|+> search_path ... [-o output_path[</|:>{name}.{ext}]]
+template < typename _Ty >
+inline ConsoleAttrT<_Ty> ErrorStyle( _Ty const & v )
+{
+    return ConsoleColor( fgWhite | bgMaroon, v, true );
+}
 
-    --m:
-        统计注释的行数
-    --l:
-        统计空行的行数
-    --re:
-        使用正则表达式
-    ext1 ext2 ext3 ...:
-        当有--re时可以是正则表达式，匹配文件名。（如果要匹配扩展名可以末尾加$，ext$）
-    -:
-        表示递归搜索指定的路径列表
-    +:
-        表示搜索指定的路径列表，不搜索子文件夹
-    search_path ...:
-        搜索路径
-    -o:
-        基于当前目录，在output_path目录进行输出。
-        当使用 / 时，在output_path目录输出处理后的源代码文件。
-        当使用 : 时，在output_path目录按原有的目录结构输出处理后的源代码文件。
-        源代码文件命名规则由之后的字符串指定，可使用的变量为{name}、{ext}，分别表示文件名和扩展名。
-
-*/
-
+// 分析命令参数
 bool AnalyzeParams( ProcessContext * ctx, CommandLineVars const & cmdVars )
 {
     int k = 0;
@@ -85,7 +92,7 @@ bool AnalyzeParams( ProcessContext * ctx, CommandLineVars const & cmdVars )
     }
     if ( ctx->expansionMode.empty() )
     {
-        cerr << ConsoleColor( fgRed, "未指定搜索指定路径的方式: + 或 -" ) << endl;
+        cerr << ErrorStyle("未指定搜索指定路径的方式: + 或 -") << endl;
         return false;
     }
 
@@ -95,7 +102,7 @@ bool AnalyzeParams( ProcessContext * ctx, CommandLineVars const & cmdVars )
     }
     if ( ctx->patterns.empty() )
     {
-        cerr << ConsoleColor( fgRed, "未指定匹配文件的模式: 扩展名 或 正则表达式" ) << endl;
+        cerr << ErrorStyle("未指定匹配文件的模式: 扩展名 或 正则表达式") << endl;
         return false;
     }
     try
@@ -108,7 +115,7 @@ bool AnalyzeParams( ProcessContext * ctx, CommandLineVars const & cmdVars )
     }
     catch ( std::regex_error const & e )
     {
-        cerr << ConsoleColor( fgRed, e.what() ) << endl;
+        cerr << ErrorStyle( e.what() ) << endl;
         return false;
     }
 
@@ -118,13 +125,14 @@ bool AnalyzeParams( ProcessContext * ctx, CommandLineVars const & cmdVars )
     }
     if ( ctx->searchPaths.empty() )
     {
-        cerr << ConsoleColor( fgRed, "未指定搜索路径" ) << endl;
+        cerr << ErrorStyle("未指定搜索路径") << endl;
         return false;
     }
 
     return true;
 }
 
+// 扫描代码文件
 int DoScanCodeFiles(
     ProcessContext * ctx,
     String searchTopDir, ///< 记录搜索起始的顶层目录
@@ -164,8 +172,12 @@ int DoScanCodeFiles(
     return filesCount;
 }
 
+// 处理代码文件
 void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, size_t patternIndex, String const & path, String const & fileName, String const & contents )
 {
+    String processedCodes;
+    ProcessCode( ctx, contents, &processedCodes );
+
     String ext; // 扩展名
     String fileTitle = FileTitle( fileName, &ext ); // 文件名
 
@@ -175,6 +187,9 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, size_
 
     String outputDir, outputFile;
     String::size_type pos;
+
+    cout << ConsoleColor( fgYellow, contents.length() ) << endl;
+    cout << ConsoleColor( fgGreen, processedCodes.length() ) << endl;
 
     if ( ctx->outputPath.empty() ) // 不输出文件
     {
@@ -202,16 +217,8 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, size_
     {
         if ( pos == ctx->outputPath.length() - 1 ) // '/'在末尾
         {
-            if ( pos == 0 ) // '/'也在开头，说明只有一个'/'
-            {
-                outputDir = ctx->outputPath.substr( 0, pos ); // "";
-                outputFile = fileName;
-            }
-            else
-            {
-                outputDir = ctx->outputPath.substr( 0, pos );
-                outputFile = fileName;
-            }
+            outputDir = ctx->outputPath.substr( 0, pos );
+            outputFile = fileName;
         }
         else
         {
@@ -225,7 +232,8 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, size_
             else
             {
                 String lastPart = ctx->outputPath.substr( pos + 1 );
-                if ( lastPart.find('.') != String::npos ) // 如果搜到.，则lastPart当成文件名
+                thread_local regex reVar("\\{.+\\}");
+                if ( lastPart.find('.') != String::npos || regex_search( lastPart, reVar ) ) // 如果搜到.或搜到{xxx}，则lastPart当成文件名
                 {
                     outputDir = ctx->outputPath.substr( 0, pos );
                     outputFile = mmr.replace(lastPart);
@@ -238,23 +246,21 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, size_
             }
         }
         //输出文件
-        cout << CombinePath(outputDir,outputFile) << endl;
+        cout << searchTopDir << " : " << CombinePath( path, fileName ) << " => " << CombinePath(outputDir,outputFile) << endl;
     }
 }
 
 int main( int argc, char const * argv[] )
 {
     CommandLineVars cmdVars( argc, argv, "-o", "", "--m,--l,--re" );
-    ProcessContext ctx = { 0 };
+    ProcessContext ctx;
     ctx.m = cmdVars.hasFlag("--m");
     ctx.l = cmdVars.hasFlag("--l");
     ctx.re = cmdVars.hasFlag("--re");
     ctx.outputPath = cmdVars.getParam( "-o", "" );
 
-    if ( !AnalyzeParams( &ctx, cmdVars ) )
-    {
-        return 1;
-    }
+    if ( !AnalyzeParams( &ctx, cmdVars ) ) return 1;
+
     cout << ctx.patterns << endl;
     cout << ctx.expansionMode << endl;
     cout << ctx.searchPaths << endl;
@@ -263,10 +269,11 @@ int main( int argc, char const * argv[] )
     // 扫描文件
     DoScanCodeFiles( &ctx, "", ctx.searchPaths, [ &ctx ] ( String const & searchTopDir, auto i, String const & path, String const & f ) {
         auto fg = fgColorForPatterns[i % countof(fgColorForPatterns)]; // 文字颜色
-        cout << ConsoleColor( fg, ctx.patterns[i] ) << "：" << ConsoleColor( fg, NormalizePath( CombinePath( path, f ) ) ) << endl;
+        cout << ConsoleColor( fg, ctx.patterns[i] ) << "：" << ConsoleColor( fg, CombinePath( path, f ) ) << endl;
 
         DoProcessCodeFile( &ctx, searchTopDir, i, path, f, FileGetContents( CombinePath( path, f ) ) );
     } );
+
 
     //ConvFrom<UnicodeString> cfu("UCS-2LE");
     //cout << cfu.convert(L"你好");

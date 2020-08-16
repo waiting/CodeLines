@@ -1,4 +1,6 @@
 # CodeLines
+[![Build status](https://ci.appveyor.com/api/projects/status/oach5ro1fk86xa23?svg=true)](https://ci.appveyor.com/project/waiting/codelines)
+
 一个统计代码行数的工具，也可以用来去掉代码中的注释和空行。支持所有C系编程语言。
 
 
