@@ -29,6 +29,8 @@ struct ProcessContext
     }
 };
 
+// 处理代码
 void ProcessCode( ProcessContext * ctx, String const & codeText, String * pOutputCode );
 
-uint CalcLines( String const & codeText );
+// 统计行数
+uint CalcLines( String const & codeText, std::function< void ( int iLine, String const & line ) > func );

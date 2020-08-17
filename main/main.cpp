@@ -176,6 +176,7 @@ int DoScanCodeFiles(
 void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, size_t patternIndex, String const & path, String const & fileName, String const & contents )
 {
     String processedCodes;
+    // 处理代码 去除注释、空行
     ProcessCode( ctx, contents, &processedCodes );
 
     String ext; // 扩展名
@@ -188,8 +189,18 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, size_
     String outputDir, outputFile;
     String::size_type pos;
 
-    cout << ConsoleColor( fgYellow, contents.length() ) << endl;
-    cout << ConsoleColor( fgGreen, processedCodes.length() ) << endl;
+
+    // 计算行数
+    uint linesThisFile = CalcLines( processedCodes, [] ( int iLine, String const & line ) {
+        auto l1 = StrTrim(line);
+        if ( l1.length() > 120 ) // 一行太长了
+            cout <<"Length("<< l1.length() << "), Line(" << ConsoleColor( fgGray, iLine+1 ) << "):" << ConsoleColor( fgYellow, l1 ) << endl;
+    } );
+    ctx->results[patternIndex].files++;
+    ctx->results[patternIndex].lines += linesThisFile;
+
+    // 输出文件大小
+    cout << "originbytes:" << ConsoleColor( fgYellow, contents.length() ) << " -> bytes:" << ConsoleColor( fgGreen, processedCodes.length() ) << ", lines:" << ConsoleColor( fgFuchsia, linesThisFile) << endl;
 
     if ( ctx->outputPath.empty() ) // 不输出文件
     {
@@ -210,8 +221,9 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, size_
 
             outputDir = CombinePath( outputDir, tPath );
         }
+
         //输出文件
-        cout << searchTopDir << " : " << CombinePath( path, fileName ) << " => " << CombinePath(outputDir,outputFile) << endl;
+        //cout << searchTopDir << " : " << CombinePath( path, fileName ) << " => " << CombinePath(outputDir,outputFile) << endl;
     }
     else if ( ( ( pos = ctx->outputPath.rfind( '/' ) ) != String::npos || ( pos = ctx->outputPath.rfind( '\\' ) ) != String::npos ) ) // 含有 '/' 或 '\\' 在指定目录输出
     {
@@ -245,8 +257,9 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, size_
                 }
             }
         }
+
         //输出文件
-        cout << searchTopDir << " : " << CombinePath( path, fileName ) << " => " << CombinePath(outputDir,outputFile) << endl;
+        //cout << searchTopDir << " : " << CombinePath( path, fileName ) << " => " << CombinePath(outputDir,outputFile) << endl;
     }
 }
 

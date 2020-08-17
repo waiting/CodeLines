@@ -179,7 +179,7 @@ void ProcessCode( ProcessContext * ctx, String const & codeText, String * pOutpu
 }
 
 // 计算行数
-uint CalcLines( String const & codeText )
+winux::uint CalcLines( String const & codeText, std::function< void ( int iLine, String const & line ) > func )
 {
     uint lines = 0;
     String::size_type i = 0, lastNlPos = String::npos;
@@ -188,6 +188,7 @@ uint CalcLines( String const & codeText )
     {
         if ( codeText[i] == '\n' )
         {
+            func( lines, codeText.substr( lastNlPos + 1, i - ( lastNlPos + 1 ) ) );
             lastNlPos = i;
             lines++;
         }
@@ -196,6 +197,7 @@ uint CalcLines( String const & codeText )
     }
     if ( lastNlPos != codeText.length() - 1 )
     {
+        func( lines, codeText.substr( lastNlPos + 1 ) );
         lines++;
     }
 
