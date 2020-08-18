@@ -128,7 +128,7 @@ void ProcessCode( ProcessContext * ctx, String const & codeText, String * pOutpu
                     //cout << ConsoleColor( winux::fgAtrovirens, codeText.substr( curCommentStart, i - curCommentStart ) ) << endl;
 
                     // 判断注释开始之前是否有空白,去掉空白
-                    auto tmpStart = curCommentStart - 1;
+                    int tmpStart = curCommentStart - 1;
                     while ( tmpStart >= 0 && ( codeText[tmpStart] == ' ' || codeText[tmpStart] == '\t' ) ) tmpStart--;
                     curCommentStart = tmpStart + 1;
 
@@ -144,7 +144,7 @@ void ProcessCode( ProcessContext * ctx, String const & codeText, String * pOutpu
                     Process_BlockComment( ctx, codeText, &i );
                     //cout << ConsoleColor( winux::fgGreen, codeText.substr( curCommentStart, i - curCommentStart ) ) << endl;
 
-                    auto tmpStart = curCommentStart - 1;
+                    int tmpStart = curCommentStart - 1;
                     while ( tmpStart >= 0 && ( codeText[tmpStart] == ' ' || codeText[tmpStart] == '\t' ) ) tmpStart--;
                     curCommentStart = tmpStart + 1;
 
