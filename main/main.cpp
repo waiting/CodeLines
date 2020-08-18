@@ -67,7 +67,8 @@ ushort bgColor[] = {
 };
 
 ushort fgColorForPatterns[] = {
-    fgAqua, fgRed, fgYellow, fgGreen, fgWhite, fgFuchsia, fgBlue, fgTeal, fgMaroon, fgOlive, fgAtrovirens, fgSilver, fgPurple, fgGray
+    fgAqua, fgRed, fgYellow, fgGreen, fgWhite, fgFuchsia, fgBlue,
+    fgTeal, fgMaroon, fgOlive, fgAtrovirens, fgSilver, fgPurple, fgGray
 };
 
 template < typename _Ty >
@@ -175,9 +176,17 @@ int DoScanCodeFiles(
 // 处理代码文件
 void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, size_t patternIndex, String const & path, String const & fileName, String const & contents )
 {
-    String processedCodes;
+    auto fg = fgColorForPatterns[patternIndex % countof(fgColorForPatterns)]; // 文字颜色
+
+    String processedCodeText;
     // 处理代码 去除注释、空行
-    ProcessCode( ctx, contents, &processedCodes );
+    ProcessCode( ctx, contents, &processedCodeText );
+
+    // 处理前的原始行数
+    StringArray originCodes;
+    CalcLines( contents, [&originCodes] ( auto i, auto const & line ) {
+        originCodes.push_back(line);
+    } );
 
     String ext; // 扩展名
     String fileTitle = FileTitle( fileName, &ext ); // 文件名
@@ -190,17 +199,37 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, size_
     String::size_type pos;
 
 
-    // 计算行数
-    uint linesThisFile = CalcLines( processedCodes, [] ( int iLine, String const & line ) {
+    // 计算处理后的行数
+    StringArray problemCodes;
+    uint linesThisFile = CalcLines( processedCodeText, [&problemCodes] ( int iLine, String const & line ) {
         auto l1 = StrTrim(line);
         if ( l1.length() > 120 ) // 一行太长了
-            cout <<"Length("<< l1.length() << "), Line(" << ConsoleColor( fgGray, iLine+1 ) << "):" << ConsoleColor( fgYellow, l1 ) << endl;
+        {
+            problemCodes.push_back(l1);
+        }
     } );
+
+    // 输出问题行在原始代码中的行数
+    size_t start = 0;
+    for ( size_t i = 0; i < problemCodes.size(); ++i )
+    {
+        for ( size_t j = start; j < originCodes.size(); ++j )
+        {
+            if ( originCodes[j].find( problemCodes[i] ) != String::npos )
+            {
+                cout << "Line(" << ConsoleColor( fgRed, j + 1 ) << "): " << ConsoleColor( fgYellow|bgNavy, problemCodes[i],true ) << " 第" << j + 1 << "行代码过长！" << endl;
+                start = j + 1;
+            }
+        }
+    }
+
+    // 记下统计结果
     ctx->results[patternIndex].files++;
     ctx->results[patternIndex].lines += linesThisFile;
 
-    // 输出文件大小
-    cout << "originbytes:" << ConsoleColor( fgYellow, contents.length() ) << " -> bytes:" << ConsoleColor( fgGreen, processedCodes.length() ) << ", lines:" << ConsoleColor( fgFuchsia, linesThisFile) << endl;
+    // 输出文件大小和行数
+    cout << ConsoleColor( fg, ctx->patterns[patternIndex] ) << "：" << ConsoleColor( fg, CombinePath( path, fileName ) ) << endl;
+    cout << "处理前: bytes=" << ConsoleColor( fgYellow, contents.length() ) << ", lines="<<ConsoleColor( fgYellow, originCodes.size() ) << "  处理后: bytes=" << ConsoleColor( fgGreen, processedCodeText.length() ) << ", lines=" << ConsoleColor( fgGreen, linesThisFile) << endl;
 
     if ( ctx->outputPath.empty() ) // 不输出文件
     {
@@ -274,20 +303,20 @@ int main( int argc, char const * argv[] )
 
     if ( !AnalyzeParams( &ctx, cmdVars ) ) return 1;
 
-    cout << ctx.patterns << endl;
-    cout << ctx.expansionMode << endl;
-    cout << ctx.searchPaths << endl;
-
+    //cout << ctx.patterns << endl;
+    //cout << ctx.expansionMode << endl;
+    //cout << ctx.searchPaths << endl;
 
     // 扫描文件
     DoScanCodeFiles( &ctx, "", ctx.searchPaths, [ &ctx ] ( String const & searchTopDir, auto i, String const & path, String const & f ) {
-        auto fg = fgColorForPatterns[i % countof(fgColorForPatterns)]; // 文字颜色
-        cout << ConsoleColor( fg, ctx.patterns[i] ) << "：" << ConsoleColor( fg, CombinePath( path, f ) ) << endl;
-
         DoProcessCodeFile( &ctx, searchTopDir, i, path, f, FileGetContents( CombinePath( path, f ) ) );
     } );
 
-
+    for ( auto &kv : ctx.results )
+    {
+        cout << ctx.patterns[kv.first] << ":" << kv.second.files << ", " << kv.second.lines << endl;
+    }
+    //cout << ctx.results << endl;
     //ConvFrom<UnicodeString> cfu("UCS-2LE");
     //cout << cfu.convert(L"你好");
     //File f("main.cpp","r");
