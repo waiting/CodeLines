@@ -67,9 +67,11 @@ ushort bgColor[] = {
 };
 
 ushort fgColorForPatterns[] = {
-    fgAqua, fgRed, fgYellow, fgGreen, fgWhite, fgFuchsia, fgBlue,
-    fgTeal, fgMaroon, fgOlive, fgAtrovirens, fgSilver, fgPurple, fgGray
+    fgAqua, fgFuchsia, fgYellow, fgGreen, fgWhite, fgRed, fgBlue,
+    fgTeal, fgPurple, fgOlive, fgAtrovirens, fgSilver, fgMaroon, fgGray
 };
+
+inline ushort FgColor( int patternIndex ) { return fgColorForPatterns[patternIndex % countof(fgColorForPatterns)]; }
 
 template < typename _Ty >
 inline ConsoleAttrT<_Ty> ErrorStyle( _Ty const & v )
@@ -138,7 +140,7 @@ int DoScanCodeFiles(
     ProcessContext * ctx,
     String searchTopDir, ///< 记录搜索起始的顶层目录
     StringArray const & searchPaths,
-    std::function< void ( String const & topDir, size_t patternIndex, String const & path, String const & fileName ) > func
+    std::function< void ( String const & topDir, int patternIndex, String const & path, String const & fileName ) > func
 )
 {
     int filesCount = 0;
@@ -154,7 +156,7 @@ int DoScanCodeFiles(
             {
                 if ( regex_search( fileName, ctx->rePatterns[i] ) )
                 {
-                    func( searchTopDir, i, searchPath, fileName );
+                    func( searchTopDir, (int)i, searchPath, fileName );
                     filesCount++;
                 }
             }
@@ -173,10 +175,10 @@ int DoScanCodeFiles(
     return filesCount;
 }
 
-// 处理代码文件
-void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, size_t patternIndex, String const & path, String const & fileName, String const & contents )
+// 处理一个代码文件
+void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int patternIndex, String const & path, String const & fileName, String const & contents )
 {
-    auto fg = fgColorForPatterns[patternIndex % countof(fgColorForPatterns)]; // 文字颜色
+    auto fg = FgColor(patternIndex); // 文字颜色
 
     String processedCodeText;
     // 处理代码 去除注释、空行
@@ -188,26 +190,24 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, size_
         originCodes.push_back(line);
     } );
 
-    String ext; // 扩展名
-    String fileTitle = FileTitle( fileName, &ext ); // 文件名
-
-    MultiMatch mmr;
-    mmr.addMatchReplacePair( "{name}", fileTitle );
-    mmr.addMatchReplacePair( "{ext}", ext );
-
-    String outputDir, outputFile;
-    String::size_type pos;
-
-
     // 计算处理后的行数
     StringArray problemCodes;
     uint linesThisFile = CalcLines( processedCodeText, [&problemCodes] ( int iLine, String const & line ) {
         auto l1 = StrTrim(line);
-        if ( l1.length() > 120 ) // 一行太长了
+        if ( l1.length() > 80 * 1.618 ) // 一行太长了
         {
             problemCodes.push_back(l1);
         }
     } );
+
+    // 输出文件大小和行数
+    ConsoleAttrT<int> ca( fg, 0 );
+    ca.modify();
+    cout << String( 80, '-' ) << endl;
+    cout << ctx->patterns[patternIndex] << "：" << CombinePath( path, fileName ) << endl;
+    cout << "处理前: bytes=" << contents.length() << ", lines=" << originCodes.size() << "  处理后: bytes=" << processedCodeText.length() << ", lines=" << linesThisFile << endl;
+    cout << String( 80, '-' ) << endl;
+    ca.resume();
 
     // 输出问题行在原始代码中的行数
     size_t start = 0;
@@ -217,7 +217,9 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, size_
         {
             if ( originCodes[j].find( problemCodes[i] ) != String::npos )
             {
-                cout << "Line(" << ConsoleColor( fgRed, j + 1 ) << "): " << ConsoleColor( fgYellow|bgNavy, problemCodes[i],true ) << " 第" << j + 1 << "行代码过长！" << endl;
+                cout << "Line(" << ConsoleColor( fgRed, j + 1 ) << "): ";
+                cout << problemCodes[i];
+                cout << "  第" << j + 1 << "行代码" << ConsoleColor( fgFuchsia, problemCodes[i].length() ) << "长度过长！" << endl;
                 start = j + 1;
             }
         }
@@ -225,11 +227,21 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, size_
 
     // 记下统计结果
     ctx->results[patternIndex].files++;
-    ctx->results[patternIndex].lines += linesThisFile;
+    ctx->results[patternIndex].processedBytes += processedCodeText.length();
+    ctx->results[patternIndex].processedLines += linesThisFile;
+    ctx->results[patternIndex].originBytes += contents.length();
+    ctx->results[patternIndex].originLines += originCodes.size();
 
-    // 输出文件大小和行数
-    cout << ConsoleColor( fg, ctx->patterns[patternIndex] ) << "：" << ConsoleColor( fg, CombinePath( path, fileName ) ) << endl;
-    cout << "处理前: bytes=" << ConsoleColor( fgYellow, contents.length() ) << ", lines="<<ConsoleColor( fgYellow, originCodes.size() ) << "  处理后: bytes=" << ConsoleColor( fgGreen, processedCodeText.length() ) << ", lines=" << ConsoleColor( fgGreen, linesThisFile) << endl;
+    String extName; // 扩展名
+    String fileTitle = FileTitle( fileName, &extName ); // 文件名
+
+    MultiMatch mmr;
+    mmr.addMatchReplacePair( "{name}", fileTitle );
+    mmr.addMatchReplacePair( "{ext}", extName );
+
+    String outputDir, outputFile;
+    String::size_type pos;
+
 
     if ( ctx->outputPath.empty() ) // 不输出文件
     {
@@ -252,7 +264,7 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, size_
         }
 
         //输出文件
-        //cout << searchTopDir << " : " << CombinePath( path, fileName ) << " => " << CombinePath(outputDir,outputFile) << endl;
+        cout << searchTopDir << " : " << CombinePath( path, fileName ) << " => " << CombinePath(outputDir,outputFile) << endl;
     }
     else if ( ( ( pos = ctx->outputPath.rfind( '/' ) ) != String::npos || ( pos = ctx->outputPath.rfind( '\\' ) ) != String::npos ) ) // 含有 '/' 或 '\\' 在指定目录输出
     {
@@ -288,7 +300,7 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, size_
         }
 
         //输出文件
-        //cout << searchTopDir << " : " << CombinePath( path, fileName ) << " => " << CombinePath(outputDir,outputFile) << endl;
+        cout << searchTopDir << " : " << CombinePath( path, fileName ) << " => " << CombinePath(outputDir,outputFile) << endl;
     }
 }
 
@@ -312,22 +324,34 @@ int main( int argc, char const * argv[] )
         DoProcessCodeFile( &ctx, searchTopDir, i, path, f, FileGetContents( CombinePath( path, f ) ) );
     } );
 
-    for ( auto &kv : ctx.results )
+    cout << endl;
+    // 输出结果
+    for ( auto i = 0U; i < ctx.patterns.size(); ++i )
     {
-        cout << ctx.patterns[kv.first] << ":" << kv.second.files << ", " << kv.second.lines << endl;
+        ConsoleAttrT<int> ca( FgColor(i), 0 );
+        ca.modify();
+        cout << ctx.patterns[i] << ":\n    files=" << ctx.results[i].files << "\n"
+            << "    lines=" << ctx.results[i].processedLines << ", bytes=" << ctx.results[i].processedBytes << endl
+            << "    origin_lines=" << ctx.results[i].originLines << ", origin_bytes=" << ctx.results[i].originBytes << endl;
+        ca.resume();
     }
-    //cout << ctx.results << endl;
-    //ConvFrom<UnicodeString> cfu("UCS-2LE");
-    //cout << cfu.convert(L"你好");
-    //File f("main.cpp","r");
-    //String pureCode;
-    //Process_CodeText( &ctx, f.buffer(), &pureCode );
-    //String localCode = LocalFromUtf8(pureCode);
-    //FilePutContents( "main_nocomment.cpp", pureCode );
-    //FilePutContents( "main_nocomment1.cpp", localCode );
-    //auto localCode = FileGetContents("main_nocomment.cpp");
-    //cout << LocalFromUtf8(pureCode);
 
+    // 总计
+    size_t totalFiles = 0;
+    size_t totalProcessedLines = 0, totalProcessedBytes = 0;
+    size_t totalOriginLines = 0, totalOriginBytes = 0;
+    for ( auto & kv : ctx.results )
+    {
+        totalFiles += kv.second.files;
+        totalProcessedLines += kv.second.processedLines;
+        totalProcessedBytes += kv.second.processedBytes;
+        totalOriginLines += kv.second.originLines;
+        totalOriginBytes += kv.second.originBytes;
+    }
+    cout << "\nTotal:\n";
+    cout << "    files=" << totalFiles << "\n"
+        << "    lines=" << totalProcessedLines << ", bytes=" << totalProcessedBytes << endl
+        << "    origin_lines=" << totalOriginLines << ", origin_bytes=" << totalOriginBytes << endl;
 
     return 0;
 }

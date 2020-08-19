@@ -17,9 +17,12 @@ struct ProcessContext
     std::vector<std::regex> rePatterns; ///< 构建的正则表达式
     struct Result
     {
-        int files;
-        int lines;
-        Result() : files(0), lines(0) { }
+        size_t files;
+        size_t originBytes;
+        size_t processedBytes;
+        size_t originLines;
+        size_t processedLines;
+        Result() { memset( this, 0, sizeof(*this) ); }
     };
     std::map< int, Result > results; ///< 统计结果
     String outputPath; ///< 输出路径
