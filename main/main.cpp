@@ -269,6 +269,9 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
         cout << "输出" << " : " << NormalizePath( CombinePath( path, fileName ) ) << " => " << NormalizePath( CombinePath(outputDir,outputFile) );
         ca.resume();
         cout << endl;
+
+        MakeDirExists( outputDir );
+        FilePutContents( CombinePath(outputDir, outputFile), processedCodeText );
     }
     else if ( ( ( pos = ctx->outputPath.rfind( '/' ) ) != String::npos || ( pos = ctx->outputPath.rfind( '\\' ) ) != String::npos ) ) // 含有 '/' 或 '\\' 在指定目录输出
     {
@@ -284,7 +287,7 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
             if ( isdir )
             {
                 outputDir = ctx->outputPath;
-                outputDir = fileName;
+                outputFile = fileName;
             }
             else
             {
@@ -309,6 +312,9 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
         cout << "输出" << " : " << NormalizePath( CombinePath( path, fileName ) ) << " => " << NormalizePath( CombinePath(outputDir,outputFile) );
         ca.resume();
         cout << endl;
+
+        MakeDirExists( outputDir );
+        FilePutContents( CombinePath(outputDir, outputFile), processedCodeText );
     }
 }
 

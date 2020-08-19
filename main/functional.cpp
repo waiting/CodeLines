@@ -150,6 +150,7 @@ void ProcessCode( ProcessContext * ctx, String const & codeText, String * pOutpu
 
                     outputCode += codeText.substr( prevPos, curCommentStart - prevPos );
 
+                    // 如果注释后跟着换行符，并且注释开始位置之前也是换行符或是代码开始，说明此行全是注释，可以去除此行
                     if ( i < codeText.length() && codeText[i] == '\n' && ( curCommentStart == 0 || codeText[curCommentStart - 1] == '\n' ) ) i++; // skip '\n'
 
                     prevPos = i;
