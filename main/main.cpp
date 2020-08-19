@@ -264,7 +264,11 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
         }
 
         //输出文件
-        cout << searchTopDir << " : " << CombinePath( path, fileName ) << " => " << CombinePath(outputDir,outputFile) << endl;
+        ConsoleAttrT<int> ca( bgAtrovirens|fgYellow, 0, true );
+        ca.modify();
+        cout << "输出" << " : " << NormalizePath( CombinePath( path, fileName ) ) << " => " << NormalizePath( CombinePath(outputDir,outputFile) );
+        ca.resume();
+        cout << endl;
     }
     else if ( ( ( pos = ctx->outputPath.rfind( '/' ) ) != String::npos || ( pos = ctx->outputPath.rfind( '\\' ) ) != String::npos ) ) // 含有 '/' 或 '\\' 在指定目录输出
     {
@@ -300,7 +304,11 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
         }
 
         //输出文件
-        cout << searchTopDir << " : " << CombinePath( path, fileName ) << " => " << CombinePath(outputDir,outputFile) << endl;
+        ConsoleAttrT<int> ca( bgAtrovirens|fgYellow, 0, true );
+        ca.modify();
+        cout << "输出" << " : " << NormalizePath( CombinePath( path, fileName ) ) << " => " << NormalizePath( CombinePath(outputDir,outputFile) );
+        ca.resume();
+        cout << endl;
     }
 }
 
