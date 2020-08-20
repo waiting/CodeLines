@@ -6,7 +6,7 @@
 
 ## 命令详细
 
-    CodeLines [--m] [--l] [--re] ext1 [ext2] [ext3] ... <-|+> search_path ... [-o output_path[</|:>{name}.{ext}]]
+    CodeLines [--m] [--l] [--re] [--silent] ext1 [ext2] [ext3] ... <-|+> search_path ... [-o output_path[</|:>{name}.{ext}]]
 
     --m:
         统计注释的行数
@@ -14,6 +14,8 @@
         统计空行的行数
     --re:
         使用正则表达式
+    --silent:
+        静默模式
     ext1 ext2 ext3 ...:
         当有--re时可以是正则表达式，匹配文件名。（如果要匹配扩展名可以末尾加$，ext$）
     -:

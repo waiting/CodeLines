@@ -1,7 +1,7 @@
 ﻿/**
     统计代码行数
     调用命令格式:
-    CodeLines [--m] [--l] [--re] ext1 [ext2] [ext3] ... <-|+> search_path ... [-o output_path[</|:>{name}.{ext}]]
+    CodeLines [--m] [--l] [--re] [--silent] ext1 [ext2] [ext3] ... <-|+> search_path ... [-o output_path[</|:>{name}.{ext}]]
 
     --m:
         统计注释的行数
@@ -9,6 +9,8 @@
         统计空行的行数
     --re:
         使用正则表达式
+    --silent:
+        静默模式
     ext1 ext2 ext3 ...:
         当有--re时可以是正则表达式，匹配文件名。（如果要匹配扩展名可以末尾加$，ext$）
     -:
@@ -28,47 +30,9 @@
 #include "functional.hpp"
 using namespace std;
 
-ushort fgColor[] = {
-    fgBlack,
-    fgNavy,
-    fgAtrovirens,
-    fgTeal,
-    fgMaroon,
-    fgPurple,
-    fgOlive,
-    fgSilver,
-    fgGray,
-    fgBlue,
-    fgGreen,
-    fgAqua,
-    fgRed,
-    fgFuchsia,
-    fgYellow,
-    fgWhite,
-};
-
-ushort bgColor[] = {
-    bgBlack,
-    bgNavy,
-    bgAtrovirens,
-    bgTeal,
-    bgMaroon,
-    bgPurple,
-    bgOlive,
-    bgSilver,
-    bgGray,
-    bgBlue,
-    bgGreen,
-    bgAqua,
-    bgRed,
-    bgFuchsia,
-    bgYellow,
-    bgWhite,
-};
-
 ushort fgColorForPatterns[] = {
-    fgAqua, fgFuchsia, fgYellow, fgGreen, fgWhite, fgRed, fgBlue,
-    fgTeal, fgPurple, fgOlive, fgAtrovirens, fgSilver, fgMaroon, fgGray
+    fgAqua, fgRed, fgYellow, fgGreen, fgWhite, fgFuchsia, fgBlue,
+    fgTeal, fgMaroon, fgOlive, fgAtrovirens, fgSilver, fgPurple, fgGray
 };
 
 inline ushort FgColor( int patternIndex ) { return fgColorForPatterns[patternIndex % countof(fgColorForPatterns)]; }
@@ -95,7 +59,7 @@ bool AnalyzeParams( ProcessContext * ctx, CommandLineVars const & cmdVars )
     }
     if ( ctx->expansionMode.empty() )
     {
-        cerr << ErrorStyle("未指定搜索指定路径的方式: + 或 -") << endl;
+        cerr << ErrorStyle("Unspecified the expansion mode of search path: + or -") << endl;
         return false;
     }
 
@@ -105,7 +69,7 @@ bool AnalyzeParams( ProcessContext * ctx, CommandLineVars const & cmdVars )
     }
     if ( ctx->patterns.empty() )
     {
-        cerr << ErrorStyle("未指定匹配文件的模式: 扩展名 或 正则表达式") << endl;
+        cerr << ErrorStyle("Unspecified the pattern for file matching: extname or regex") << endl;
         return false;
     }
     try
@@ -128,7 +92,7 @@ bool AnalyzeParams( ProcessContext * ctx, CommandLineVars const & cmdVars )
     }
     if ( ctx->searchPaths.empty() )
     {
-        cerr << ErrorStyle("未指定搜索路径") << endl;
+        cerr << ErrorStyle("Unspecified the search path") << endl;
         return false;
     }
 
@@ -200,27 +164,30 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
         }
     } );
 
-    // 输出文件大小和行数
-    ConsoleAttrT<int> ca( fg, 0 );
-    ca.modify();
-    cout << String( 80, '-' ) << endl;
-    cout << ctx->patterns[patternIndex] << "：" << CombinePath( path, fileName ) << endl;
-    cout << "处理前: bytes=" << contents.length() << ", lines=" << originCodes.size() << "  处理后: bytes=" << processedCodeText.length() << ", lines=" << linesThisFile << endl;
-    cout << String( 80, '-' ) << endl;
-    ca.resume();
-
-    // 输出问题行在原始代码中的行数
-    size_t start = 0;
-    for ( size_t i = 0; i < problemCodes.size(); ++i )
+    if ( !ctx->silent )
     {
-        for ( size_t j = start; j < originCodes.size(); ++j )
+        // 输出文件大小和行数
+        ConsoleAttrT<int> ca( fg, 0 );
+        ca.modify();
+        cout << String( 80, '-' ) << endl;
+        cout << ctx->patterns[patternIndex] << ": " << CombinePath( path, fileName ) << endl;
+        cout << "orgin: bytes=" << contents.length() << ", lines=" << originCodes.size() << "  processed: bytes=" << processedCodeText.length() << ", lines=" << linesThisFile << endl;
+        cout << String( 80, '-' ) << endl;
+        ca.resume();
+
+        // 输出问题行在原始代码中的行数
+        size_t start = 0;
+        for ( size_t i = 0; i < problemCodes.size(); ++i )
         {
-            if ( originCodes[j].find( problemCodes[i] ) != String::npos )
+            for ( size_t j = start; j < originCodes.size(); ++j )
             {
-                cout << "Line(" << ConsoleColor( fgRed, j + 1 ) << "): ";
-                cout << problemCodes[i];
-                cout << "  第" << j + 1 << "行代码" << ConsoleColor( fgFuchsia, problemCodes[i].length() ) << "长度过长！" << endl;
-                start = j + 1;
+                if ( originCodes[j].find( problemCodes[i] ) != String::npos )
+                {
+                    cout << "Line(" << ConsoleColor( fgRed, j + 1 ) << "): ";
+                    cout << problemCodes[i];
+                    cout << "  Code length " << ConsoleColor( fgFuchsia, problemCodes[i].length() ) << " is too long at line " << j + 1 << "!" << endl;
+                    start = j + 1;
+                }
             }
         }
     }
@@ -266,7 +233,7 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
         //输出文件
         ConsoleAttrT<int> ca( bgAtrovirens|fgYellow, 0, true );
         ca.modify();
-        cout << "输出" << " : " << NormalizePath( CombinePath( path, fileName ) ) << " => " << NormalizePath( CombinePath(outputDir,outputFile) );
+        cout << "Output" << ": " << NormalizePath( CombinePath( path, fileName ) ) << " => " << NormalizePath( CombinePath(outputDir,outputFile) );
         ca.resume();
         cout << endl;
 
@@ -309,7 +276,7 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
         //输出文件
         ConsoleAttrT<int> ca( bgAtrovirens|fgYellow, 0, true );
         ca.modify();
-        cout << "输出" << " : " << NormalizePath( CombinePath( path, fileName ) ) << " => " << NormalizePath( CombinePath(outputDir,outputFile) );
+        cout << "Output" << ": " << NormalizePath( CombinePath( path, fileName ) ) << " => " << NormalizePath( CombinePath(outputDir,outputFile) );
         ca.resume();
         cout << endl;
 
@@ -320,22 +287,21 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
 
 int main( int argc, char const * argv[] )
 {
-    CommandLineVars cmdVars( argc, argv, "-o", "", "--m,--l,--re" );
+    CommandLineVars cmdVars( argc, argv, "-o", "", "--m,--l,--re,--silent" );
     ProcessContext ctx;
     ctx.m = cmdVars.hasFlag("--m");
     ctx.l = cmdVars.hasFlag("--l");
     ctx.re = cmdVars.hasFlag("--re");
+    ctx.silent = cmdVars.hasFlag("--silent");
     ctx.outputPath = cmdVars.getParam( "-o", "" );
 
     if ( !AnalyzeParams( &ctx, cmdVars ) ) return 1;
 
-    //cout << ctx.patterns << endl;
-    //cout << ctx.expansionMode << endl;
-    //cout << ctx.searchPaths << endl;
-
     // 扫描文件
     DoScanCodeFiles( &ctx, "", ctx.searchPaths, [ &ctx ] ( String const & searchTopDir, auto i, String const & path, String const & f ) {
-        DoProcessCodeFile( &ctx, searchTopDir, i, path, f, FileGetContents( CombinePath( path, f ) ) );
+        File objFile( CombinePath( path, f ), "r" );
+        String contents = objFile.buffer();
+        DoProcessCodeFile( &ctx, searchTopDir, i, path, f, contents );
     } );
 
     cout << endl;
@@ -344,10 +310,11 @@ int main( int argc, char const * argv[] )
     {
         ConsoleAttrT<int> ca( FgColor(i), 0 );
         ca.modify();
-        cout << ctx.patterns[i] << ":\n    files=" << ctx.results[i].files << "\n"
-            << "    lines=" << ctx.results[i].processedLines << ", bytes=" << ctx.results[i].processedBytes << endl
-            << "    origin_lines=" << ctx.results[i].originLines << ", origin_bytes=" << ctx.results[i].originBytes << endl;
-        ca.resume();
+        cout << ctx.patterns[i] << ":\n"
+            << "    files=" << ctx.results[i].files << endl
+            << "    origin_lines=" << ctx.results[i].originLines << ", origin_bytes=" << ctx.results[i].originBytes << endl
+            << "    lines=" << ctx.results[i].processedLines << ", bytes=" << ctx.results[i].processedBytes << endl;
+            ca.resume();
     }
 
     // 总计
@@ -362,10 +329,10 @@ int main( int argc, char const * argv[] )
         totalOriginLines += kv.second.originLines;
         totalOriginBytes += kv.second.originBytes;
     }
-    cout << "\nTotal:\n";
-    cout << "    files=" << totalFiles << "\n"
-        << "    lines=" << totalProcessedLines << ", bytes=" << totalProcessedBytes << endl
-        << "    origin_lines=" << totalOriginLines << ", origin_bytes=" << totalOriginBytes << endl;
+    cout << "\nTotal:\n"
+        << "    files=" << totalFiles << endl
+        << "    origin_lines=" << totalOriginLines << ", origin_bytes=" << totalOriginBytes << endl
+        << "    lines=" << totalProcessedLines << ", bytes=" << totalProcessedBytes << endl;
 
     return 0;
 }
