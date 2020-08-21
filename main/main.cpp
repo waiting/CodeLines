@@ -304,7 +304,7 @@ int main( int argc, char const * argv[] )
         DoProcessCodeFile( &ctx, searchTopDir, i, path, f, contents );
     } );
 
-    cout << endl;
+    cout << "In search path `" << StrJoin( "`, `", ctx.searchPaths ) << "`:" << endl;
     // 输出结果
     for ( auto i = 0U; i < ctx.patterns.size(); ++i )
     {
