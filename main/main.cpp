@@ -220,6 +220,13 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
         if ( outputFile.empty() ) outputFile = fileName;
         outputFile = mmr.replace(outputFile);
 
+        String path1 = RealPath(searchTopDir), path2 = RealPath(outputDir);
+        if ( path1 == path2 )
+        {
+            cout << "search_path: " << path1 << endl << "output_path: " << path2 << endl;
+            throw Error( 2, "In `:` output mode, the search path and output path are the same." );
+        }
+
         // 计算相对于topDir目录的结构
         if ( strncmp( searchTopDir.c_str(), path.c_str(), searchTopDir.length() ) == 0 )
         {
@@ -273,6 +280,13 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
             }
         }
 
+        String path1 = RealPath(path), path2 = RealPath(outputDir);
+        if ( path1 == path2 )
+        {
+            cout << "really_path: " << path1 << endl << "output_path: " << path2 << endl;
+            throw Error( 2, "In `/` output mode, the really path and output path are the same." );
+        }
+
         //输出文件
         ConsoleAttrT<int> ca( bgAtrovirens|fgYellow, 0, true );
         ca.modify();
@@ -297,12 +311,22 @@ int main( int argc, char const * argv[] )
 
     if ( !AnalyzeParams( &ctx, cmdVars ) ) return 1;
 
-    // 扫描文件
-    DoScanCodeFiles( &ctx, "", ctx.searchPaths, [ &ctx ] ( String const & searchTopDir, auto i, String const & path, String const & f ) {
-        File objFile( CombinePath( path, f ), "r" );
-        String contents = objFile.buffer();
-        DoProcessCodeFile( &ctx, searchTopDir, i, path, f, contents );
-    } );
+    try
+    {
+        // 扫描文件
+        DoScanCodeFiles( &ctx, "", ctx.searchPaths, [ &ctx ] ( String const & searchTopDir, auto i, String const & path, String const & f ) {
+            File objFile( CombinePath( path, f ), "r" );
+            String contents = objFile.buffer();
+            DoProcessCodeFile( &ctx, searchTopDir, i, path, f, contents );
+        } );
+    }
+    catch ( winux::Error const & e )
+    {
+        cout << ErrorStyle( e.what() ) << endl;
+    }
+    catch ( ... )
+    {
+    }
 
     cout << "In search path `" << StrJoin( "`, `", ctx.searchPaths ) << "`:" << endl;
     // 输出结果
