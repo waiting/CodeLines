@@ -237,7 +237,7 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
             outputDir = CombinePath( outputDir, tPath );
         }
 
-        //输出文件
+        // 输出文件
         ConsoleAttrT<int> ca( bgAtrovirens|fgYellow, 0, true );
         ca.modify();
         cout << "Output" << ": " << NormalizePath( CombinePath( path, fileName ) ) << " => " << NormalizePath( CombinePath(outputDir,outputFile) );
@@ -287,7 +287,7 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
             throw Error( 2, "In `/` output mode, the really path and output path are the same." );
         }
 
-        //输出文件
+        // 输出文件
         ConsoleAttrT<int> ca( bgAtrovirens|fgYellow, 0, true );
         ca.modify();
         cout << "Output" << ": " << NormalizePath( CombinePath( path, fileName ) ) << " => " << NormalizePath( CombinePath(outputDir,outputFile) );
@@ -315,9 +315,7 @@ int main( int argc, char const * argv[] )
     {
         // 扫描文件
         DoScanCodeFiles( &ctx, "", ctx.searchPaths, [ &ctx ] ( String const & searchTopDir, auto i, String const & path, String const & f ) {
-            File objFile( CombinePath( path, f ), "r" );
-            String contents = objFile.buffer();
-            DoProcessCodeFile( &ctx, searchTopDir, i, path, f, contents );
+            DoProcessCodeFile( &ctx, searchTopDir, i, path, f, FileGetContents( CombinePath( path, f ) ) );
         } );
     }
     catch ( winux::Error const & e )

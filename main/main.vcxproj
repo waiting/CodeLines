@@ -75,26 +75,26 @@
     <TargetName>$(SolutionName)</TargetName>
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>F:\Projects\FCGI-Projects\components\winux\include;D:\Program Files\MySQL\mysql-5.7.9-win32\include;F:\Libraries\pthreads-w32-2-9-1-release\Pre-built.2\include;F:\Libraries\mylibraries\Release\include;F:\Libraries\openssl-build\include;$(IncludePath)</IncludePath>
+    <IncludePath>include;include/winux;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <TargetName>$(SolutionName)</TargetName>
-    <IncludePath>F:\Projects\FCGI-Projects\components\winux\include;F:\Libraries\pthreads-w32-2-9-1-release\Pre-built.2\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
-    <LibraryPath>F:\Libraries\pthreads-w32-2-9-1-release\Pre-built.2\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>include;include/winux;$(IncludePath)</IncludePath>
+    <LibraryPath>$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <TargetName>$(SolutionName)</TargetName>
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>F:\Projects\FCGI-Projects\components\winux\include;D:\Program Files\MySQL\mysql-5.7.9-win32\include;F:\Libraries\pthreads-w32-2-9-1-release\Pre-built.2\include;F:\Libraries\mylibraries\Release\include;F:\Libraries\openssl-build\include;$(IncludePath)</IncludePath>
+    <IncludePath>include;include/winux;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <TargetName>$(SolutionName)</TargetName>
-    <IncludePath>F:\Projects\FCGI-Projects\components\winux\include;F:\Libraries\pthreads-w32-2-9-1-release\Pre-built.2\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
-    <LibraryPath>F:\Libraries\pthreads-w32-2-9-1-release\Pre-built.2\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>include;include/winux;$(IncludePath)</IncludePath>
+    <LibraryPath>$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -108,7 +108,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>pthreadVC2.lib;windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -123,7 +123,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>pthreadVC2.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -142,7 +142,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>pthreadVC2.lib;windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -161,29 +161,23 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>pthreadVC2.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\archives.cpp" />
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\console.cpp" />
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\encoding.cpp" />
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\filesys.cpp" />
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\json.cpp" />
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\md5.cpp" />
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\sha1.cpp" />
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\smartptr.cpp" />
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\strings.cpp" />
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\system.cpp" />
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\time.cpp" />
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\unzip.cpp" />
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\utilities.cpp" />
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\zip.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="functional.cpp" />
+    <ClCompile Include="src\winux\console.cpp" />
+    <ClCompile Include="src\winux\filesys.cpp" />
+    <ClCompile Include="src\winux\json.cpp" />
+    <ClCompile Include="src\winux\smartptr.cpp" />
+    <ClCompile Include="src\winux\strings.cpp" />
+    <ClCompile Include="src\winux\system.cpp" />
+    <ClCompile Include="src\winux\time.cpp" />
+    <ClCompile Include="src\winux\utilities.cpp" />
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\functional.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="functional.hpp" />
+    <ClInclude Include="include\functional.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

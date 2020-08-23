@@ -18,57 +18,39 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
+    <ClCompile Include="src\main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\archives.cpp">
+    <ClCompile Include="src\winux\console.cpp">
       <Filter>源文件\winux</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\console.cpp">
+    <ClCompile Include="src\winux\smartptr.cpp">
       <Filter>源文件\winux</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\encoding.cpp">
+    <ClCompile Include="src\winux\strings.cpp">
       <Filter>源文件\winux</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\filesys.cpp">
+    <ClCompile Include="src\winux\system.cpp">
       <Filter>源文件\winux</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\json.cpp">
+    <ClCompile Include="src\winux\utilities.cpp">
       <Filter>源文件\winux</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\md5.cpp">
-      <Filter>源文件\winux</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\sha1.cpp">
-      <Filter>源文件\winux</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\smartptr.cpp">
-      <Filter>源文件\winux</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\strings.cpp">
-      <Filter>源文件\winux</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\system.cpp">
-      <Filter>源文件\winux</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\time.cpp">
-      <Filter>源文件\winux</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\unzip.cpp">
-      <Filter>源文件\winux</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\utilities.cpp">
-      <Filter>源文件\winux</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\FCGI-Projects\components\winux\src\zip.cpp">
-      <Filter>源文件\winux</Filter>
-    </ClCompile>
-    <ClCompile Include="functional.cpp">
+    <ClCompile Include="src\functional.cpp">
       <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\winux\filesys.cpp">
+      <Filter>源文件\winux</Filter>
+    </ClCompile>
+    <ClCompile Include="src\winux\json.cpp">
+      <Filter>源文件\winux</Filter>
+    </ClCompile>
+    <ClCompile Include="src\winux\time.cpp">
+      <Filter>源文件\winux</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="functional.hpp">
+    <ClInclude Include="include\functional.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
