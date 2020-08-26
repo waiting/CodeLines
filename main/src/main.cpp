@@ -1,18 +1,18 @@
 ﻿/**
-    统计代码行数
-    调用命令格式:
-    CodeLines [--m] [--l] [--re] [--silent] ext1 [ext2] [ext3] ... <-|+> search_path ... [-o output_path[</|:>{name}.{ext}]]
+    CodeLines [--m] [--l] [--r] [--s] [--v] ext1 [ext2] [ext3] ... <-|+> search_path ... [-o output_path[</|:>{name}.{ext}]]
 
     --m:
         统计注释的行数
     --l:
         统计空行的行数
-    --re:
+    --r:
         使用正则表达式
-    --silent:
+    --s:
         静默模式
+    --v:
+        显示代码行详细警告信息
     ext1 ext2 ext3 ...:
-        当有--re时可以是正则表达式，匹配文件名。（如果要匹配扩展名可以末尾加$，ext$）
+        当有--r时可以是正则表达式，匹配文件名。（如果要匹配扩展名可以末尾加$，ext$）
     -:
         表示递归搜索指定的路径列表
     +:
@@ -169,24 +169,27 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
         // 输出文件大小和行数
         ConsoleAttrT<int> ca( fg, 0 );
         ca.modify();
-        cout << String( 80, '-' ) << endl;
+        cout << String( 79, '-' ) << endl;
         cout << ctx->patterns[patternIndex] << ": " << CombinePath( path, fileName ) << endl;
         cout << "orgin: bytes=" << contents.length() << ", lines=" << originCodes.size() << "  processed: bytes=" << processedCodeText.length() << ", lines=" << linesThisFile << endl;
-        cout << String( 80, '-' ) << endl;
+        cout << String( 79, '-' ) << endl;
         ca.resume();
 
-        // 输出问题行在原始代码中的行数
-        size_t start = 0;
-        for ( size_t i = 0; i < problemCodes.size(); ++i )
+        if ( ctx->verbose )
         {
-            for ( size_t j = start; j < originCodes.size(); ++j )
+            // 输出问题行在原始代码中的行数
+            size_t start = 0;
+            for ( size_t i = 0; i < problemCodes.size(); ++i )
             {
-                if ( originCodes[j].find( problemCodes[i] ) != String::npos )
+                for ( size_t j = start; j < originCodes.size(); ++j )
                 {
-                    cout << "Line(" << ConsoleColor( fgRed, j + 1 ) << "): ";
-                    cout << problemCodes[i];
-                    cout << "  Code length " << ConsoleColor( fgFuchsia, problemCodes[i].length() ) << " is too long at line " << j + 1 << "!" << endl;
-                    start = j + 1;
+                    if ( originCodes[j].find( problemCodes[i] ) != String::npos )
+                    {
+                        cout << "Line(" << ConsoleColor( fgRed, j + 1 ) << "): ";
+                        cout << problemCodes[i];
+                        cout << "  Code length " << ConsoleColor( fgFuchsia, problemCodes[i].length() ) << " is too long at line " << j + 1 << "!" << endl;
+                        start = j + 1;
+                    }
                 }
             }
         }
@@ -301,12 +304,13 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
 
 int main( int argc, char const * argv[] )
 {
-    CommandLineVars cmdVars( argc, argv, "-o", "", "--m,--l,--re,--silent" );
+    CommandLineVars cmdVars( argc, argv, "-o", "", "--m,--l,--r,--s,--v" );
     ProcessContext ctx;
     ctx.m = cmdVars.hasFlag("--m");
     ctx.l = cmdVars.hasFlag("--l");
-    ctx.re = cmdVars.hasFlag("--re");
-    ctx.silent = cmdVars.hasFlag("--silent");
+    ctx.re = cmdVars.hasFlag("--r");
+    ctx.silent = cmdVars.hasFlag("--s");
+    ctx.verbose = cmdVars.hasFlag("--v");
     ctx.outputPath = cmdVars.getParam( "-o", "" );
 
     if ( !AnalyzeParams( &ctx, cmdVars ) ) return 1;

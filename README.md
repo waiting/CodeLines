@@ -1,23 +1,25 @@
 # CodeLines
 [![Build status](https://ci.appveyor.com/api/projects/status/oach5ro1fk86xa23?svg=true)](https://ci.appveyor.com/project/waiting/codelines)
 
-一个统计代码行数的工具，也可以用来去掉代码中的注释和空行。支持所有C系编程语言。
+一个统计代码行数的工具，也可以用来去掉代码中的注释和空行。支持所有`C系编程语言`。
 
 
 ## 命令详细
 
-    CodeLines [--m] [--l] [--re] [--silent] ext1 [ext2] [ext3] ... <-|+> search_path ... [-o output_path[</|:>{name}.{ext}]]
+    CodeLines [--m] [--l] [--r] [--s] [--v] ext1 [ext2] [ext3] ... <-|+> search_path ... [-o output_path[</|:>{name}.{ext}]]
 
     --m:
         统计注释的行数
     --l:
         统计空行的行数
-    --re:
+    --r:
         使用正则表达式
-    --silent:
+    --s:
         静默模式
+    --v:
+        显示代码行详细警告信息
     ext1 ext2 ext3 ...:
-        当有--re时可以是正则表达式，匹配文件名。（如果要匹配扩展名可以末尾加$，ext$）
+        当有--r时可以是正则表达式，匹配文件名。（如果要匹配扩展名可以末尾加$，ext$）
     -:
         表示递归搜索指定的路径列表
     +:
