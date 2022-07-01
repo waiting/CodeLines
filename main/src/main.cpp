@@ -304,13 +304,14 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
 
 int main( int argc, char const * argv[] )
 {
-    CommandLineVars cmdVars( argc, argv, "-o", "", "--m,--l,--r,--s,--v" );
+    CommandLineVars cmdVars( argc, argv, "-o", "", "--m,--l,--r,--s,--v,--j" );
     ProcessContext ctx;
     ctx.m = cmdVars.hasFlag("--m");
     ctx.l = cmdVars.hasFlag("--l");
     ctx.re = cmdVars.hasFlag("--r");
     ctx.silent = cmdVars.hasFlag("--s");
     ctx.verbose = cmdVars.hasFlag("--v");
+    ctx.json = cmdVars.hasFlag("--j");
     ctx.outputPath = cmdVars.getParam( "-o", "" );
 
     if ( !AnalyzeParams( &ctx, cmdVars ) ) return 1;
