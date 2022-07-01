@@ -19,35 +19,18 @@ enum JsonParseContext
 
 bool JsonParseData( std::vector<JsonParseContext> & jpc, String const & json, int & i, Mixed * val );
 
-inline static bool IsOct( char ch )
-{
-    return ch >= '0' && ch <= '7';
-}
+#include "is_x_funcs.inl"
 
-inline static bool IsHex( char ch )
-{
-    return ( ch >= '0' && ch <= '9' ) || ( ch >= 'A' && ch <= 'F' ) || ( ch >= 'a' && ch <= 'f' );
-}
-
-inline static bool IsSpace( char ch )
-{
-    return ch > '\0' && ch <= ' ';
-}
-
-inline static bool IsDigit( char ch )
-{
-    return ch >= '0' && ch <= '9';
-}
-
-inline static bool IsWord( char ch )
-{
-    return ( ch >= 'A' && ch <= 'Z' ) || ( ch >= 'a' && ch <= 'z' ) || ch == '_' || ((winux::byte)ch) > ((winux::byte)127U);
-}
-
-inline static char StringToChar( const char * number, int base )
+inline static char NumberStringToChar( const char * number, int base )
 {
     char * endptr;
     return (char)strtol( number, &endptr, base );
+}
+
+inline static winux::ulong NumberStringToNumber( const char * number, int base )
+{
+    char * endptr;
+    return (winux::ulong)strtoul( number, &endptr, base );
 }
 
 /* 解析数字 */
@@ -107,6 +90,22 @@ bool JsonParseNumber( std::vector<JsonParseContext> & jpc, String const & json, 
     }
     return true;
 
+}
+
+thread_local bool __byteOrderForUtf16 = true;
+WINUX_FUNC_IMPL(bool) JsonSetByteOrderForUtf16( bool isLittleEndian )
+{
+    auto old = __byteOrderForUtf16;
+    __byteOrderForUtf16 = isLittleEndian;
+    return old;
+}
+
+thread_local String __convertToCharsetForUtf16 = "";
+WINUX_FUNC_IMPL(String) JsonSetConvertToCharsetForUtf16( String const & charset )
+{
+    auto old = __convertToCharsetForUtf16;
+    __convertToCharsetForUtf16 = charset;
+    return old;
 }
 
 /* 解析转义字符 */
@@ -174,11 +173,11 @@ bool JsonParseStrAntiSlashes( std::vector<JsonParseContext> & jpc, String const 
                 }
             }
 
-            *str += StringToChar( octStr.c_str(), 8 );
+            *str += NumberStringToChar( octStr.c_str(), 8 );
 
             break;
         }
-        else if ( ch == 'x' || ch == 'X' )
+        else if ( ( ch | 0x20 ) == 'x' ) // 解析\xHH
         {
             ++i; // skip 'x'
             String hexStr;
@@ -195,7 +194,31 @@ bool JsonParseStrAntiSlashes( std::vector<JsonParseContext> & jpc, String const 
                 }
             }
 
-            *str += StringToChar( hexStr.c_str(), 16 );
+            *str += NumberStringToChar( hexStr.c_str(), 16 );
+
+            break;
+        }
+        else if ( ( ch | 0x20 ) == 'u' ) // 解析\uHHHH
+        {
+            ++i; // skip 'u'
+            String hexStr;
+            for ( ; i < (int)json.length(); ++i )
+            {
+                ch = json[i];
+                if ( IsHex(ch) && hexStr.length() < 4 )
+                {
+                    hexStr += ch;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            winux::ulong code0 = NumberStringToNumber( hexStr.c_str(), 16 );
+            UnicodeString16::value_type chars[] = { (UnicodeString16::value_type)code0, 0 };
+            Conv conv( __byteOrderForUtf16 ? "UTF-16LE" : "UTF-16BE", __convertToCharsetForUtf16.c_str() );
+            *str += conv.convert< AnsiString, UnicodeString16 >(chars);
 
             break;
         }
@@ -489,6 +512,7 @@ bool JsonParseData( std::vector<JsonParseContext> & jpc, String const & json, in
         }
         else // 其他字符
         {
+        //OTHER_CHARS:
             if ( jpc.back() == jsonArrElem )
             {
                 if ( ch == ',' || ch == ']' )
@@ -539,20 +563,161 @@ WINUX_FUNC_IMPL(bool) JsonParse( String const & json, Mixed * val )
     return JsonParseData( jpc, json, i, val );
 }
 
+WINUX_FUNC_IMPL(Mixed) Json( String const & json )
+{
+    Mixed v;
+    JsonParse( json, &v );
+    return v;
+}
+
 template < typename _ChTy >
 /* JSON键名是否用字符串形式表示 */
-static bool IsKeyNameUseString( std::basic_string<_ChTy> const & key )
+inline static bool IsKeyNameUseString( std::basic_string<_ChTy> const & key )
 {
     if ( key.empty() ) return true;
     typename std::basic_string<_ChTy>::const_iterator it;
     for ( it = key.begin(); it != key.end(); ++it )
     {
-        if ( !( ( *it >= (_ChTy)'0' && *it <= (_ChTy)'9' ) || ( *it >= (_ChTy)'A' && *it <= (_ChTy)'Z' ) || ( *it >= (_ChTy)'a' && *it <= (_ChTy)'z' ) || *it == (_ChTy)'_' ) )
+        if ( !( IsDigit(*it) || IsWord(*it) ) )
         {
             return true;
         }
     }
     return false;
+}
+
+static AnsiString __Recursive_MixedToJsonExA( int level, Mixed const & v, bool autoKeyQuotes, AnsiString const & spacer, AnsiString const & newline )
+{
+    AnsiString s;
+    if ( v.isArray() )
+    {
+        s += "[" + ( newline.empty() || (int)v._pArr->size() == 0 ? " " : newline );
+        for ( int i = 0; i < (int)v._pArr->size(); ++i )
+        {
+            if ( i != 0 ) s += "," + ( newline.empty() ? " " : newline );
+
+            s += ( spacer.empty() ? "" : StrMultipleA( spacer, level + 1 ) ) + __Recursive_MixedToJsonExA( level + 1, v[i], autoKeyQuotes, spacer, newline );
+        }
+        s += ( newline.empty() || (int)v._pArr->size() == 0 ? " " : newline ) + ( spacer.empty() || (int)v._pArr->size() == 0 ? "" : StrMultipleA( spacer, level ) ) + "]";
+    }
+    else if ( v.isCollection() )
+    {
+        s += "{" + ( newline.empty() || (int)v._pArr->size() == 0 ? " " : newline );
+        MixedArray::const_iterator it;
+        for ( it = v._pArr->begin(); it != v._pArr->end(); ++it )
+        {
+            if ( it != v._pArr->begin() ) s += "," + ( newline.empty() ? " " : newline );
+            // key
+            if ( it->isString() )
+            {
+                AnsiString k = *it;
+                s += ( spacer.empty() ? "" : StrMultipleA( spacer, level + 1 ) ) + ( autoKeyQuotes ? ( IsKeyNameUseString(k) ? "\"" + AddCSlashesA(k) + "\"" : k ) : ( "\"" + AddCSlashesA(k) + "\"" ) );
+            }
+            else
+            {
+                s += ( spacer.empty() ? "" : StrMultipleA( spacer, level + 1 ) ) + __Recursive_MixedToJsonExA( level + 1, *it, autoKeyQuotes, spacer, newline );
+            }
+            s += ":" + AnsiString( newline.empty() ? "" : " " );
+            // value
+            s += __Recursive_MixedToJsonExA( level + 1, v._pMap->at(*it), autoKeyQuotes, spacer, newline );
+        }
+        s += ( newline.empty() || (int)v._pArr->size() == 0 ? " " : newline ) + ( spacer.empty() || (int)v._pArr->size() == 0 ? "" : StrMultipleA( spacer, level ) ) + "}";
+    }
+    else
+    {
+        if ( v.isString() )
+        {
+            s += "\"" + AddCSlashesA( v.toAnsi() ) + "\"";
+        }
+        else
+        {
+            switch ( v._type )
+            {
+            case Mixed::MT_NULL:
+                s += "null";
+                break;
+            case Mixed::MT_BOOLEAN:
+                s += v._boolVal ? "true" : "false";
+                break;
+            default:
+                s += v.toAnsi();
+                break;
+            }
+        }
+    }
+    return s;
+}
+
+static UnicodeString __Recursive_MixedToJsonExW( int level, Mixed const & v, bool autoKeyQuotes, UnicodeString const & spacer, UnicodeString const & newline )
+{
+    UnicodeString s;
+    if ( v.isArray() )
+    {
+        s += L"[" + ( newline.empty() || (int)v._pArr->size() == 0 ? L" " : newline );
+        for ( int i = 0; i < (int)v._pArr->size(); ++i )
+        {
+            if ( i != 0 ) s += L"," + ( newline.empty() ? L" " : newline );
+
+            s += ( spacer.empty() ? L"" : StrMultipleW( spacer, level + 1 ) ) + __Recursive_MixedToJsonExW( level + 1, v[i], autoKeyQuotes, spacer, newline );
+        }
+        s += ( newline.empty() || (int)v._pArr->size() == 0 ? L" " : newline ) + ( spacer.empty() || (int)v._pArr->size() == 0 ? L"" : StrMultipleW( spacer, level ) ) + L"]";
+    }
+    else if ( v.isCollection() )
+    {
+        s += L"{" + ( newline.empty() || (int)v._pArr->size() == 0 ? L" " : newline );
+        MixedArray::const_iterator it;
+        for ( it = v._pArr->begin(); it != v._pArr->end(); ++it )
+        {
+            if ( it != v._pArr->begin() ) s += L"," + ( newline.empty() ? L" " : newline );
+            // key
+            if ( it->isString() )
+            {
+                UnicodeString k = *it;
+                s += ( spacer.empty() ? L"" : StrMultipleW( spacer, level + 1 ) ) + ( autoKeyQuotes ? ( IsKeyNameUseString(k) ? L"\"" + AddCSlashesW(k) + L"\"" : k ) : ( L"\"" + AddCSlashesW(k) + L"\"" ) );
+            }
+            else
+            {
+                s += ( spacer.empty() ? L"" : StrMultipleW( spacer, level + 1 ) ) + __Recursive_MixedToJsonExW( level + 1, *it, autoKeyQuotes, spacer, newline );
+            }
+            s += L":" + UnicodeString( newline.empty() ? L"" : L" " );
+            // value
+            s += __Recursive_MixedToJsonExW( level + 1, v._pMap->at(*it), autoKeyQuotes, spacer, newline );
+        }
+        s += ( newline.empty() || (int)v._pArr->size() == 0 ? L" " : newline ) + ( spacer.empty() || (int)v._pArr->size() == 0 ? L"" : StrMultipleW( spacer, level ) ) + L"}";
+    }
+    else
+    {
+        if ( v.isString() )
+        {
+            s += L"\"" + AddCSlashesW( v.toUnicode() ) + L"\"";
+        }
+        else
+        {
+            switch ( v._type )
+            {
+            case Mixed::MT_NULL:
+                s += L"null";
+                break;
+            case Mixed::MT_BOOLEAN:
+                s += v._boolVal ? L"true" : L"false";
+                break;
+            default:
+                s += v.toUnicode();
+                break;
+            }
+        }
+    }
+    return s;
+}
+
+WINUX_FUNC_IMPL(AnsiString) MixedToJsonExA( Mixed const & v, bool autoKeyQuotes, AnsiString const & spacer, AnsiString const & newline )
+{
+    return __Recursive_MixedToJsonExA( 0, v, autoKeyQuotes, spacer, newline );
+}
+
+WINUX_FUNC_IMPL(UnicodeString) MixedToJsonExW( Mixed const & v, bool autoKeyQuotes, UnicodeString const & spacer, UnicodeString const & newline )
+{
+    return __Recursive_MixedToJsonExW( 0, v, autoKeyQuotes, spacer, newline );
 }
 
 WINUX_FUNC_IMPL(AnsiString) MixedToJsonA( Mixed const & v, bool autoKeyQuotes )
@@ -595,7 +760,7 @@ WINUX_FUNC_IMPL(AnsiString) MixedToJsonA( Mixed const & v, bool autoKeyQuotes )
     {
         if ( v.isString() )
         {
-            s += "\"" + AddCSlashesA( (AnsiString)v ) + "\"";
+            s += "\"" + AddCSlashesA( v.toAnsi() ) + "\"";
         }
         else
         {
@@ -608,7 +773,7 @@ WINUX_FUNC_IMPL(AnsiString) MixedToJsonA( Mixed const & v, bool autoKeyQuotes )
                 s += v._boolVal ? "true" : "false";
                 break;
             default:
-                s += (AnsiString)v;
+                s += v.toAnsi();
                 break;
             }
         }
@@ -656,7 +821,7 @@ WINUX_FUNC_IMPL(UnicodeString) MixedToJsonW( Mixed const & v, bool autoKeyQuotes
     {
         if ( v.isString() )
         {
-            s += L"\"" + AddCSlashesW( (UnicodeString)v ) + L"\"";
+            s += L"\"" + AddCSlashesW( v.toUnicode() ) + L"\"";
         }
         else
         {
@@ -669,7 +834,7 @@ WINUX_FUNC_IMPL(UnicodeString) MixedToJsonW( Mixed const & v, bool autoKeyQuotes
                 s += v._boolVal ? L"true" : L"false";
                 break;
             default:
-                s += (UnicodeString)v;
+                s += v.toUnicode();
                 break;
             }
         }

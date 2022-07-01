@@ -1,7 +1,4 @@
-﻿#ifndef __GNUC__
-#pragma warning( disable: 4786 )
-#endif
-
+﻿
 #include "utilities.hpp"
 #include "strings.hpp"
 #include "time.hpp"
@@ -23,8 +20,8 @@ DateTimeL::DateTimeL() : _millisec(0), _second(0), _minute(0), _hour(0), _day(0)
 
 }
 
-DateTimeL::DateTimeL( short year, short month, short day, short hour, short minute, short second, short millisec )
-: _millisec(millisec), _second(second), _minute(minute), _hour(hour), _day(day), _month(month), _year(year), _wday(0), _yday(0)
+DateTimeL::DateTimeL( short year, short month, short day, short hour, short minute, short second, short millisec ) :
+    _millisec(millisec), _second(second), _minute(minute), _hour(hour), _day(day), _month(month), _year(year), _wday(0), _yday(0)
 {
     struct tm t = { 0 };
     t.tm_year = _year - 1900;
@@ -40,9 +37,9 @@ DateTimeL::DateTimeL( short year, short month, short day, short hour, short minu
     _yday = t.tm_yday + 1;
 }
 
-DateTimeL::DateTimeL( ulong utcSecond ) : _millisec(0), _second(0), _minute(0), _hour(0), _day(0), _month(0), _year(0), _wday(0), _yday(0)
+DateTimeL::DateTimeL( Second const & utcSecond ) : _millisec(0), _second(0), _minute(0), _hour(0), _day(0), _month(0), _year(0), _wday(0), _yday(0)
 {
-    time_t t = utcSecond;
+    time_t t = utcSecond.value;
     struct tm * ptm = localtime(&t);
 
     _yday = ptm->tm_yday + 1;
@@ -55,14 +52,13 @@ DateTimeL::DateTimeL( ulong utcSecond ) : _millisec(0), _second(0), _minute(0), 
     _hour = ptm->tm_hour;
     _minute = ptm->tm_min;
     _second = ptm->tm_sec;
-
 }
 
-DateTimeL::DateTimeL( uint64 utcMillisec ) : _millisec(0), _second(0), _minute(0), _hour(0), _day(0), _month(0), _year(0), _wday(0), _yday(0)
+DateTimeL::DateTimeL( MilliSec const & utcMillisec ) : _millisec(0), _second(0), _minute(0), _hour(0), _day(0), _month(0), _year(0), _wday(0), _yday(0)
 {
-    _millisec = utcMillisec % 1000;
+    _millisec = utcMillisec.value % 1000;
 
-    time_t t = utcMillisec / 1000;
+    time_t t = utcMillisec.value / 1000;
     struct tm * ptm = localtime(&t);
 
     _yday = ptm->tm_yday + 1;
@@ -75,7 +71,6 @@ DateTimeL::DateTimeL( uint64 utcMillisec ) : _millisec(0), _second(0), _minute(0
     _hour = ptm->tm_hour;
     _minute = ptm->tm_min;
     _second = ptm->tm_sec;
-
 }
 
 DateTimeL::DateTimeL( String const & dateTimeStr ) : _millisec(0), _second(0), _minute(0), _hour(0), _day(0), _month(0), _year(0), _wday(0), _yday(0)
@@ -94,7 +89,7 @@ DateTimeL::DateTimeL( String const & dateTimeStr ) : _millisec(0), _second(0), _
     _yday = t.tm_yday + 1;
 }
 
-ulong DateTimeL::toUtcTime() const
+uint64 DateTimeL::toUtcTime() const
 {
     struct tm t = { 0 };
     t.tm_year = _year - 1900;
@@ -103,7 +98,7 @@ ulong DateTimeL::toUtcTime() const
     t.tm_hour = _hour;
     t.tm_min = _minute;
     t.tm_sec = _second;
-    return (ulong)mktime(&t);
+    return (uint64)mktime(&t);
 }
 
 uint64 DateTimeL::toUtcTimeMs() const
@@ -163,29 +158,7 @@ WINUX_FUNC_IMPL(std::ostream &) operator << ( std::ostream & o, DateTimeL const 
     return o;
 }
 
-#ifdef __GNUC__
-
-WINUX_FUNC_IMPL(uint64) GetUtcTimeMs()
-{
-    uint64 nMillSec = 0;
-    struct timeval tv;
-    gettimeofday( &tv, NULL );
-    nMillSec = (uint64)tv.tv_sec * 1000;
-    nMillSec += tv.tv_usec / 1000;
-    return nMillSec;
-}
-
-WINUX_FUNC_IMPL(uint64) GetUtcTimeUs()
-{
-    uint64 nMicroSec = 0;
-    struct timeval tv;
-    gettimeofday( &tv, NULL );
-    nMicroSec = (uint64)tv.tv_sec * 1000000;
-    nMicroSec += tv.tv_usec;
-    return nMicroSec;
-}
-
-#else
+#if defined(OS_WIN)
 
 // 1970-01-01 00:00:00的ULARGE_INTEGER描述
 static ULARGE_INTEGER __Time1970( void )
@@ -225,11 +198,33 @@ WINUX_FUNC_IMPL(uint64) GetUtcTimeUs( void )
     return time.QuadPart / 10;
 }
 
+#else
+
+WINUX_FUNC_IMPL(uint64) GetUtcTimeMs()
+{
+    uint64 nMillSec = 0;
+    struct timeval tv;
+    gettimeofday( &tv, NULL );
+    nMillSec = (uint64)tv.tv_sec * 1000;
+    nMillSec += tv.tv_usec / 1000;
+    return nMillSec;
+}
+
+WINUX_FUNC_IMPL(uint64) GetUtcTimeUs()
+{
+    uint64 nMicroSec = 0;
+    struct timeval tv;
+    gettimeofday( &tv, NULL );
+    nMicroSec = (uint64)tv.tv_sec * 1000000;
+    nMicroSec += tv.tv_usec;
+    return nMicroSec;
+}
+
 #endif
 
-WINUX_FUNC_IMPL(ulong) GetUtcTime( void )
+WINUX_FUNC_IMPL(uint64) GetUtcTime( void )
 {
-    return (ulong)time(NULL);
+    return time(NULL);
 }
 
 } // namespace winux

@@ -3,7 +3,7 @@
 
 namespace winux
 {
-#if defined(_MSC_VER) || defined(WIN32)
+#if defined(OS_WIN)
     typedef HANDLE HPipe;
     typedef HANDLE HProcess;
 #else
@@ -50,12 +50,17 @@ WINUX_FUNC_DECL(int) ExecCommand(
     bool closeStdinIfStdinStrEmpty = true
 );
 
+/** \brief 执行命令，返回标准输出内容 */
 WINUX_FUNC_DECL(winux::String) GetExec(
     winux::String const & cmd,
     winux::String const & stdinStr = "",
     winux::String * stderrStr = NULL,
     bool closeStdinIfStdinStrEmpty = true
 );
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////
 
 /** \brief 命令行变量解析器
  *
@@ -170,23 +175,25 @@ public:
     virtual bool unlock() = 0;
 };
 
-/** \brief 作用域范围锁定 */
-class WINUX_DLL ScopeLock
+/** \brief 作用域范围保护 */
+class WINUX_DLL ScopeGuard
 {
     ILockObj & _lockObj;
 public:
-    ScopeLock( ILockObj & lockObj ) : _lockObj(lockObj)
+    ScopeGuard( ILockObj & lockObj ) : _lockObj(lockObj)
     {
         _lockObj.lock();
     }
-    ~ScopeLock()
+    ~ScopeGuard()
     {
         _lockObj.unlock();
     }
-    DISABLE_OBJECT_COPY(ScopeLock)
+    DISABLE_OBJECT_COPY(ScopeGuard)
 };
 
-/** \brief 互斥锁 */
+/** \brief 互斥锁
+ *
+ *  Windows平台用win32api实现，Linux用pthread实现 */
 class WINUX_DLL MutexLockObj : public ILockObj
 {
 public:
@@ -198,143 +205,7 @@ public:
 private:
     MembersWrapper<struct MutexLockObj_Data> _self;
 
-    // disabled some methods
     DISABLE_OBJECT_COPY(MutexLockObj)
-};
-
-/** \brief 函数调用器 */
-template < typename _RetType >
-class Caller
-{
-private:
-    _RetType _ret;
-public:
-    template < typename _Fn >
-    Caller( _Fn fn )
-    {
-        if ( fn ) _ret = (*fn)();
-    }
-
-    template < typename _Fn, typename _Arg1 >
-    Caller( _Fn fn, _Arg1 a1 )
-    {
-        if ( fn ) _ret = (*fn)( a1 );
-    }
-
-    template < typename _Fn, typename _Arg1, typename _Arg2 >
-    Caller( _Fn fn, _Arg1 a1, _Arg2 a2 )
-    {
-        if ( fn ) _ret = (*fn)( a1, a2 );
-    }
-
-    template < typename _Fn, typename _Arg1, typename _Arg2, typename _Arg3 >
-    Caller( _Fn fn, _Arg1 a1, _Arg2 a2, _Arg3 a3 )
-    {
-        if ( fn ) _ret = (*fn)( a1, a2, a3 );
-    }
-
-    template < typename _Fn, typename _Arg1, typename _Arg2, typename _Arg3, typename _Arg4 >
-    Caller( _Fn fn, _Arg1 a1, _Arg2 a2, _Arg3 a3, _Arg4 a4 )
-    {
-        if ( fn ) _ret = (*fn)( a1, a2, a3, a4 );
-    }
-
-    template < typename _Fn, typename _Arg1, typename _Arg2, typename _Arg3, typename _Arg4, typename _Arg5 >
-    Caller( _Fn fn, _Arg1 a1, _Arg2 a2, _Arg3 a3, _Arg4 a4, _Arg5 a5 )
-    {
-        if ( fn ) _ret = (*fn)( a1, a2, a3, a4, a5 );
-    }
-
-    template < typename _Fn, typename _Arg1, typename _Arg2, typename _Arg3, typename _Arg4, typename _Arg5, typename _Arg6 >
-    Caller( _Fn fn, _Arg1 a1, _Arg2 a2, _Arg3 a3, _Arg4 a4, _Arg5 a5, _Arg6 a6 )
-    {
-        if ( fn ) _ret = (*fn)( a1, a2, a3, a4, a5, a6 );
-    }
-
-    template < typename _Fn, typename _Arg1, typename _Arg2, typename _Arg3, typename _Arg4, typename _Arg5, typename _Arg6, typename _Arg7 >
-    Caller( _Fn fn, _Arg1 a1, _Arg2 a2, _Arg3 a3, _Arg4 a4, _Arg5 a5, _Arg6 a6, _Arg7 a7 )
-    {
-        if ( fn ) _ret = (*fn)( a1, a2, a3, a4, a5, a6, a7 );
-    }
-
-    template < typename _Fn, typename _Arg1, typename _Arg2, typename _Arg3, typename _Arg4, typename _Arg5, typename _Arg6, typename _Arg7, typename _Arg8 >
-    Caller( _Fn fn, _Arg1 a1, _Arg2 a2, _Arg3 a3, _Arg4 a4, _Arg5 a5, _Arg6 a6, _Arg7 a7, _Arg8 a8 )
-    {
-        if ( fn ) _ret = (*fn)( a1, a2, a3, a4, a5, a6, a7, a8 );
-    }
-
-    template < typename _Fn, typename _Arg1, typename _Arg2, typename _Arg3, typename _Arg4, typename _Arg5, typename _Arg6, typename _Arg7, typename _Arg8, typename _Arg9 >
-    Caller( _Fn fn, _Arg1 a1, _Arg2 a2, _Arg3 a3, _Arg4 a4, _Arg5 a5, _Arg6 a6, _Arg7 a7, _Arg8 a8, _Arg9 a9 )
-    {
-        if ( fn ) _ret = (*fn)( a1, a2, a3, a4, a5, a6, a7, a8, a9 );
-    }
-
-    operator _RetType() const { return _ret; }
-};
-
-template <>
-class Caller<void>
-{
-public:
-    template < typename _Fn >
-    Caller( _Fn fn )
-    {
-        if ( fn ) (*fn)();
-    }
-
-    template < typename _Fn, typename _Arg1 >
-    Caller( _Fn fn, _Arg1 a1 )
-    {
-        if ( fn ) (*fn)( a1 );
-    }
-
-    template < typename _Fn, typename _Arg1, typename _Arg2 >
-    Caller( _Fn fn, _Arg1 a1, _Arg2 a2 )
-    {
-        if ( fn ) (*fn)( a1, a2 );
-    }
-
-    template < typename _Fn, typename _Arg1, typename _Arg2, typename _Arg3 >
-    Caller( _Fn fn, _Arg1 a1, _Arg2 a2, _Arg3 a3 )
-    {
-        if ( fn ) (*fn)( a1, a2, a3 );
-    }
-
-    template < typename _Fn, typename _Arg1, typename _Arg2, typename _Arg3, typename _Arg4 >
-    Caller( _Fn fn, _Arg1 a1, _Arg2 a2, _Arg3 a3, _Arg4 a4 )
-    {
-        if ( fn ) (*fn)( a1, a2, a3, a4 );
-    }
-
-    template < typename _Fn, typename _Arg1, typename _Arg2, typename _Arg3, typename _Arg4, typename _Arg5 >
-    Caller( _Fn fn, _Arg1 a1, _Arg2 a2, _Arg3 a3, _Arg4 a4, _Arg5 a5 )
-    {
-        if ( fn ) (*fn)( a1, a2, a3, a4, a5 );
-    }
-
-    template < typename _Fn, typename _Arg1, typename _Arg2, typename _Arg3, typename _Arg4, typename _Arg5, typename _Arg6 >
-    Caller( _Fn fn, _Arg1 a1, _Arg2 a2, _Arg3 a3, _Arg4 a4, _Arg5 a5, _Arg6 a6 )
-    {
-        if ( fn ) (*fn)( a1, a2, a3, a4, a5, a6 );
-    }
-
-    template < typename _Fn, typename _Arg1, typename _Arg2, typename _Arg3, typename _Arg4, typename _Arg5, typename _Arg6, typename _Arg7 >
-    Caller( _Fn fn, _Arg1 a1, _Arg2 a2, _Arg3 a3, _Arg4 a4, _Arg5 a5, _Arg6 a6, _Arg7 a7 )
-    {
-        if ( fn ) (*fn)( a1, a2, a3, a4, a5, a6, a7 );
-    }
-
-    template < typename _Fn, typename _Arg1, typename _Arg2, typename _Arg3, typename _Arg4, typename _Arg5, typename _Arg6, typename _Arg7, typename _Arg8 >
-    Caller( _Fn fn, _Arg1 a1, _Arg2 a2, _Arg3 a3, _Arg4 a4, _Arg5 a5, _Arg6 a6, _Arg7 a7, _Arg8 a8 )
-    {
-        if ( fn ) (*fn)( a1, a2, a3, a4, a5, a6, a7, a8 );
-    }
-
-    template < typename _Fn, typename _Arg1, typename _Arg2, typename _Arg3, typename _Arg4, typename _Arg5, typename _Arg6, typename _Arg7, typename _Arg8, typename _Arg9 >
-    Caller( _Fn fn, _Arg1 a1, _Arg2 a2, _Arg3 a3, _Arg4 a4, _Arg5 a5, _Arg6 a6, _Arg7 a7, _Arg8 a8, _Arg9 a9 )
-    {
-        if ( fn ) (*fn)( a1, a2, a3, a4, a5, a6, a7, a8, a9 );
-    }
 };
 
 /** \brief Dll加载器错误 */
@@ -354,7 +225,7 @@ class WINUX_DLL DllLoader
 {
 public:
 
-#if defined(_MSC_VER) || defined(WIN32)
+#if defined(OS_WIN)
     typedef HMODULE ModuleHandle;
 #else
     typedef void * ModuleHandle;
@@ -372,7 +243,7 @@ public:
     operator bool() const { return _hDllModule != NULL; }
     operator ModuleHandle() const { return _hDllModule; }
 
-    // 错误信息
+    /** \brief 错误信息 */
     char const * errStr() const;
 
     /** \brief Dll函数动态调用 */
@@ -387,28 +258,22 @@ public:
     public:
         Function() : _funcName(""), _pfn(0) { }
         Function( AnsiString const & funcName, PfnType pfn ) : _funcName(funcName), _pfn(pfn) { }
-        /*Function( Function const & other ) : _pfn(other._pfn) { }
-        Function & operator = ( Function const & other )
-        {
-            if ( this != &other )
-            {
-                _pfn = other._pfn;
-            }
-            return *this;
-        }//*/
 
         operator bool() const { return _pfn != NULL; }
-
-        operator PfnType() const { return _pfn; }
 
         AnsiString const & getFuncName() const { return _funcName; }
         void * get() const { return reinterpret_cast<void *>(_pfn); }
 
-        #include "dllfunc_calltpls.inl"
+        template < typename... _ArgType >
+        typename winux::FuncTraits<PfnType>::ReturnType call( _ArgType&& ... arg )
+        {
+            if ( !_pfn ) throw DllLoaderError( DllLoaderError::DllLoader_FuncNotFound, _funcName + " is not found" );
+            return (*_pfn)( std::forward<_ArgType>(arg)... );
+        }
     };
 
     /** \brief 获取指定名字的函数地址 */
-    int (* funcAddr( AnsiString const & funcName ) )();
+    void (* funcAddr( AnsiString const & funcName ) )();
 
     /** \brief 获取指定名字的Function对象，失败抛异常 */
     template < typename _PfnType >

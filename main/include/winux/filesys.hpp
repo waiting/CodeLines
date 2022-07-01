@@ -40,8 +40,8 @@ WINUX_FUNC_DECL(String) FilePath( String const & fullPath, String * fileName = N
 
 /** \brief 获取文件标题
  *
- * \param fileName String const&
- * \param extName String*
+ * \param fileName String const& 文件名
+ * \param extName String* 返回扩展名（不包括'.'）
  * \return String */
 WINUX_FUNC_DECL(String) FileTitle( String const & fileName, String * extName = NULL );
 
@@ -51,8 +51,13 @@ WINUX_FUNC_DECL(bool) IsAbsPath( String const & path );
 /** \brief 使路径规则化(末尾不带路径分割符) */
 WINUX_FUNC_DECL(String) NormalizePath( String const & path );
 
-/** \brief 计算真实路径 */
+/** \brief 根据当前工作目录计算绝对路径，不会检查存在性 */
 WINUX_FUNC_DECL(String) RealPath( String const & path );
+
+/** \brief 根据指定工作目录计算绝对路径，不会检查存在性
+ *
+ *  \param workDirAbsPath 绝对路径指定工作目录，如果为空则调用RealPath() */
+WINUX_FUNC_DECL(String) RealPathEx( String const & path, String const & workDirAbsPath );
 
 /** \brief 返回当前工作目录(末尾不含目录分隔符) */
 WINUX_FUNC_DECL(String) GetCurrentDir( void );
@@ -114,6 +119,33 @@ WINUX_FUNC_DECL(ulong) CommonDelete( String const & path );
  *  1 1 1 - 1 0 1 - 1 0 1\n
  *  7       5       5 */
 WINUX_FUNC_DECL(bool) MakeDirExists( String const & path, int mode = 0755 );
+
+/** \brief 载入文件内容为一个AnsiString，textMode表示是否为文本模式 */
+WINUX_FUNC_DECL(AnsiString) FileGetContents( String const & filename, bool textMode = true );
+
+/** \brief 载入文件内容为一个Buffer，textMode表示是否为文本模式 */
+WINUX_FUNC_DECL(Buffer) FileGetContentsEx( String const & filename, bool textMode );
+
+/** \brief 把AnsiString内容写入文件，textMode表示是否为文本模式 */
+WINUX_FUNC_DECL(bool) FilePutContents( String const & filename, AnsiString const & content, bool textMode = true );
+
+/** \brief 把Buffer内容写入文件，textMode表示是否为文本模式 */
+WINUX_FUNC_DECL(bool) FilePutContentsEx( String const & filename, Buffer const & content, bool textMode );
+
+/** \brief 日志 */
+WINUX_FUNC_DECL(void) WriteLog( String const & s );
+
+/** \brief 二进制日志 */
+WINUX_FUNC_DECL(void) WriteBinLog( void const * data, int size );
+
+//#define __LOG__
+#ifdef __LOG__
+#define LOG(s) winux::WriteLog(s)
+#define BIN_LOG(d,s) winux::WriteBinLog((d),(s))
+#else
+#define LOG(s)
+#define BIN_LOG(d,s)
+#endif
 
 #ifndef interface
 #define interface struct

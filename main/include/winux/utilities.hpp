@@ -1,35 +1,47 @@
 ﻿#ifndef __UTILITIES_HPP__
 #define __UTILITIES_HPP__
 
-// IS WINDOWS ( defined(_MSC_VER) || defined(WIN32) )
-// IS LINUX ( defined(__GNUC__) && !defined(WIN32) )
+// 各平台条件编译宏检测
+#include "system_detection.inl"
+
+#if _MSC_VER > 0 && _MSC_VER < 1201
+#pragma warning( disable: 4786 )
+#endif
+#if _MSC_VER > 0
+#pragma warning( disable : 4996 )
+#endif
 
 #include <string>
 #include <sstream>
 #include <vector>
 #include <map>
+#include <tuple>
+#include <queue>
+#include <functional>
 #include <algorithm>
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 
-#if defined(_MSC_VER) || defined(__MINGW32__) || defined(WIN32)
+#if defined(OS_WIN)
 #include <windows.h>
 #endif
 
 /** \brief 跨平台基础功能库 */
 namespace winux
 {
-// macro definitions ------------------------------------------------------
-/*Dll相关宏定义:
+// 一些宏定义 ----------------------------------------------------------------------------------
+/*  Dll相关宏定义:
     WINUX_DLL_USE     - 此宏开关表示有DLL参与,包括生成DLL或者导入DLL,不定义此宏和一般的使用源码没区别
     WINUX_DLL_EXPORTS - 此宏开关表示是生成DLL(dllexport)还是导入DLL(dllimport),linux平台下忽略
     WINUX_DLL         - 标记函数、类、变量,用于标明其要从DLL导出还是导入,linux平台下忽略
     WINUX_API         - 标记函数调用约定,Win下Dll参与时为stdcall,否则为空白默认,linux平台下忽略
     WINUX_FUNC_DECL   - 标记函数声明
     WINUX_FUNC_IMPL   - 标记函数实现 */
-#ifdef  WINUX_DLL_USE
+#ifdef WINUX_DLL_USE
     #if defined(_MSC_VER) || defined(WIN32)
         #pragma warning( disable: 4251 )
+        #pragma warning( disable: 4275 )
         #ifdef  WINUX_DLL_EXPORTS
             #define WINUX_DLL  __declspec(dllexport)
         #else
@@ -64,17 +76,17 @@ namespace winux
 // 禁止类的对象赋值/拷贝构造
 // DISABLE_OBJECT_COPY
 #define DISABLE_OBJECT_COPY( clsname ) private:\
-clsname & operator = ( clsname const & );\
-clsname( clsname const & );
+clsname & operator = ( clsname const & ) = delete;\
+clsname( clsname const & ) = delete;
 
-// 缓冲区转换为AnsiString二进制串
-#define BufferToAnsiString( buf, size ) AnsiString( (char const *)(buf), (size_t)(size) )
+// C语言缓冲区转换为AnsiString二进制串
+#define CBufferToAnsiString( buf, size ) winux::AnsiString( (char const *)(buf), (size_t)(size) )
 
 // 如果指针非NULL
 // IF_PTR
-#define IF_PTR(ptr) if( (ptr) != NULL ) (ptr)
+#define IF_PTR(ptr) if ( (ptr) != NULL ) (ptr)
 // ASSIGN_PTR
-#define ASSIGN_PTR(ptr) if( (ptr) != NULL ) *(ptr)
+#define ASSIGN_PTR(ptr) if ( (ptr) != NULL ) (*(ptr))
 
 // 不使用一个变量
 // UNUSED
@@ -106,46 +118,103 @@ public:\
 public:\
     ty get##name() const { getcode; }
 
-// basic types -----------------------------------------------------------
-//#ifdef UNICODE
-//typedef wchar_t tchar;
-//#else
-typedef char tchar;
-//#endif
+// 给类定义一个NewInstance静态方法
+#define DEFINE_FUNC_NEWINSTANCE( cls, ret, paramtypes, params ) \
+inline static ret * NewInstance##paramtypes \
+{ \
+    return new cls##params;\
+}
 
-typedef wchar_t wchar;
+// 给类定义一个自定义事件相关的成员和函数，默认实现
+#define DEFINE_CUSTOM_EVENT(evtname, paramtypes, calledparams) \
+public: \
+    using evtname##HandlerFunction = std::function< void paramtypes >; \
+    void on##evtname##Handler( evtname##HandlerFunction handler ) \
+    { \
+        this->_##evtname##Handler = handler; \
+    } \
+protected: \
+    evtname##HandlerFunction _##evtname##Handler; \
+    virtual void on##evtname paramtypes \
+    { \
+        if ( this->_##evtname##Handler ) this->_##evtname##Handler calledparams; \
+    }
+
+// 给类定义一个自定义事件相关的成员和函数，带返回值并自己实现
+#define DEFINE_CUSTOM_EVENT_RETURN_EX(ret, evtname, paramtypes) \
+public: \
+    using evtname##HandlerFunction = std::function< ret paramtypes >; \
+    void on##evtname##Handler( evtname##HandlerFunction handler ) \
+    { \
+        this->_##evtname##Handler = handler; \
+    } \
+protected: \
+    evtname##HandlerFunction _##evtname##Handler; \
+    virtual ret on##evtname paramtypes
+
+
+// 判断GCC版本大于给定版本
+#define GCC_VERSION_GREAT_THAN(Major,Minor,Patchlevel) \
+( __GNUC__ > Major || ( __GNUC__ == Major && ( __GNUC_MINOR__ > Minor || ( __GNUC_MINOR__ == Minor && __GNUC_PATCHLEVEL__ > Patchlevel ) ) ) )
+
+// 基本类型 -----------------------------------------------------------------------------------
 typedef int int32;
 typedef unsigned int uint, uint32;
 typedef unsigned long ulong;
+typedef short int16;
 typedef unsigned short ushort, uint16;
 typedef char int8;
-typedef short int16;
 typedef unsigned char uint8;
 
-#ifdef __GNUC__
-typedef unsigned long long uint64;
-typedef unsigned long long ulonglong;
-typedef long long int64;
-typedef long long longlong;
-#else
+typedef char16_t char16;
+typedef char32_t char32;
+
+#if defined(CL_VC)
+typedef wchar_t wchar;
 typedef unsigned __int64 uint64;
 typedef unsigned __int64 ulonglong;
 typedef __int64 int64;
 typedef __int64 longlong;
+#else
+typedef wchar_t wchar;
+typedef unsigned long long uint64;
+typedef unsigned long long ulonglong;
+typedef long long int64;
+typedef long long longlong;
 #endif
+
+//#ifdef UNICODE
+//typedef wchar tchar;
+//#else
+typedef char tchar;
+//#endif
+
 #ifndef byte
 typedef unsigned char byte;
 #endif
 
 class Mixed;
 // STL wrappers
-typedef std::basic_string<char> String;
-typedef std::basic_string<char> AnsiString;
-typedef AnsiString LocalString;
-typedef std::basic_string<wchar> UnicodeString;
-typedef std::basic_string<ushort> UnicodeString16;
+template < typename _ChTy >
+using XString = std::basic_string<_ChTy>;
 
-typedef std::vector<String> StringArray;
+typedef XString<char> AnsiString, Utf8String;
+typedef XString<wchar> UnicodeString;
+typedef XString<char16> UnicodeString16, Utf16String;
+typedef XString<char32> UnicodeString32, Utf32String;
+typedef XString<tchar> String;
+
+template < typename _ChTy >
+using XStringArray = std::vector< std::basic_string<_ChTy> >;
+
+typedef XStringArray<char> AnsiStringArray, Utf8StringArray;
+typedef XStringArray<wchar> UnicodeStringArray;
+typedef XStringArray<char16> UnicodeString16Array;
+typedef XStringArray<char32> UnicodeString32Array;
+typedef XStringArray<char16> Utf16StringArray;
+typedef XStringArray<char32> Utf32StringArray;
+typedef XStringArray<tchar> StringArray;
+
 typedef std::map<String, String> StringStringMap;
 typedef std::pair<String, String> StringStringPair;
 
@@ -155,6 +224,8 @@ typedef std::pair<String, Mixed> StringMixedPair;
 //typedef std::map<Mixed, Mixed> MixedMixedMap;
 //typedef std::pair<Mixed, Mixed> MixedMixedPair;
 
+// 模板元编程支持 ---------------------------------------------------------------------------
+
 /** \brief 检测map中是否有该键的值 */
 template < typename _MAP, typename _KEY >
 inline bool isset( _MAP const & m, _KEY const & k )
@@ -162,150 +233,43 @@ inline bool isset( _MAP const & m, _KEY const & k )
     return m.find(k) != m.end();
 }
 
-/** \brief 判断一个字符串值是否在一个字符串数组里,默认大小写敏感 */
-WINUX_FUNC_DECL(bool) ValueIsInArray( StringArray const & arr, String const & val, bool caseInsensitive = false );
-
-/** \brief 以文本模式载入文件内容作为字符串 */
-WINUX_FUNC_DECL(String) FileGetContents( String const & filename );
-
-/** \brief 把字符串以文本模式写入文件 */
-WINUX_FUNC_DECL(bool) FilePutContents( String const & filename, String const & str );
-
-/** \brief 随机数,随机产生n1~n2的数字. 包括n1,n2本身 */
-WINUX_FUNC_DECL(int) Random( int n1, int n2 );
-
-/** \brief 日志 */
-WINUX_FUNC_DECL(void) WriteLog( String const & s );
-
-/** \brief 二进制日志 */
-WINUX_FUNC_DECL(void) WriteBinLog( void const * data, int size );
-
-//#define __LOG__
-#ifdef __LOG__
-#define LOG(s) winux::WriteLog(s)
-#define BIN_LOG(d,s) winux::WriteBinLog((d),(s))
-#else
-#define LOG(s)
-#define BIN_LOG(d,s)
-#endif
-
-/** \brief 配置文件类 */
-class WINUX_DLL Configure
-{
-private:
-    String _configFile;
-    StringStringMap _rawParams; ///< 未StripSlashes处理的数据集合
-
-    static int _FindConfigRef( String const & str, int offset, int * length, String * name );
-    String _expandVarNoStripSlashes( String const & name, StringArray * chains ) const;
-
-    //返回加载的配置变量个数
-    int _load( String const & configFile, StringStringMap * rawParams, StringArray * loadFileChains );
-public:
-    Configure();
-    Configure( String const & configFile );
-
-    /** \brief 载入配置文件，返回加载的配置变量个数。不会清空原数据 */
-    int load( String const & configFile );
-
-    /** \brief 判断是否含有该变量 */
-    bool has( String const & name ) const { return _rawParams.find(name) != _rawParams.end(); }
-
-    /** \brief 按指定方式获取变量值 */
-    String get( String const & name, bool stripslashes = false, bool expand = false ) const;
-
-    /** \brief 获取变量未展开的值 */
-    String operator [] ( String const & name ) const;
-
-    /** \brief 获取变量展开的值 */
-    String operator () ( String const & name ) const;
-
-    /** \brief 以RAW方式设置一个配置变量
-     *
-     * 必须是单行字符串值，特殊字符必须反转义 */
-    void setRaw( String const & name, String const & value );
-
-    /** \brief 设置一个配置变量
-     *
-     *  值会自动反转义，因此无法包含$(XXX)型的内部待展开变量，因为set()内部会自动反转义变成\\$\\(XXX\\)。
-     *  需要设置$(XXX)型内部待展开变量的请使用setRaw()。 */
-    void set( String const & name, String const & value );
-
-    /** \brief 删除一个配置变量 */
-    bool del( String const & name );
-
-    /** \brief 清空所有配置变量 */
-    void clear();
-
-    /** \brief 取得内部StringStringMap引用 */
-    StringStringMap const & getAll() const { return _rawParams; }
-};
-
-// 模板元编程支持 ---------------------------------------------------------------------------
-/** 将C数组转换成vector */
+/** \brief 将C数组转换成vector */
 template < typename _Ty >
 std::vector<_Ty> ToArray( _Ty * arr, uint count )
 {
     return std::vector<_Ty>( arr, arr + count );
 }
 
-#if defined(__GNUC__) || _MSC_VER >= 1600
-/* VC2010以上支持模板取数组大小 */
 template < typename _Ty, uint _N >
 std::vector<_Ty> ToArray( _Ty (&arr)[_N] )
 {
     return std::vector<_Ty>( arr, arr + _N );
 }
 
-#else
-/* 否则使用宏定义 */
-#define ToArray(a) ToArray( a, countof(a) )
-
-#endif
-
-/** 调用一个返回void的函数或函数对象,返回一个数字
-   通常是为了在初始化语句中方便调用返回void的函数 */
-template < typename FN >
-int VoidReturnInt( FN fn )
+/** \brief 调用一个返回void的函数或函数对象,返回一个数字
+ *
+ *  通常是为了在初始化语句中方便调用返回void的函数 */
+template < typename _Fx, typename... _ArgType >
+int VoidReturnInt( _Fx fn, _ArgType&& ...arg )
 {
-    fn();
-    return 1;
-}
-
-template < typename FN, typename ARG1 >
-int VoidReturnInt( FN fn, ARG1 a1 )
-{
-    fn(a1);
-    return 1;
-}
-template < typename FN, typename ARG1, typename ARG2 >
-int VoidReturnInt( FN fn, ARG1 a1, ARG2 a2 )
-{
-    fn( a1, a2 );
-    return 1;
-}
-template < typename FN, typename ARG1, typename ARG2, typename ARG3 >
-int VoidReturnInt( FN fn, ARG1 a1, ARG2 a2, ARG3 a3 )
-{
-    fn( a1, a2, a3 );
+    fn( std::forward<_ArgType>(arg)... );
     return 1;
 }
 
 /** \brief 二进制数,编译时计算, 0开头(基于8进制) */
 template < uint64 n > struct Bin0
 {
-    enum { val = ( Bin0< n / 8 >::val  << 1 ) + n % 8 };
+    enum : uint64 { val = ( Bin0< n / 8 >::val << 1 ) + n % 8 };
 };
-
 template <> struct Bin0<0>
 {
-    enum { val = 0 };
+    enum : uint64 { val = 0 };
 };
 
 // 二进制数 macro包装
-// BIN_VAL()
 #define BinVal(x) winux::Bin0<0##x>::val
 
+// 引用参数包装
 template < typename _Ty >
 class RefParam
 {
@@ -325,17 +289,41 @@ RefParam<_Ty> Ref( _Ty & r )
     return RefParam<_Ty>(r);
 }
 
-/** \brief 函数包装,用来将不同调用约定的函数统一包装成默认约定 */
-template < typename _PfnType, _PfnType Fn_, typename _RetType >
-struct FuncWrapper
+/** \brief Tuple参数序列 */
+template < size_t... _Index >
+struct IndexSequence { };
+
+// 构建一个IndexSequence< 0, 1, 2, ..., _Num - 1 >
+template < size_t _Num, typename _IdxSeq = IndexSequence<> >
+struct MakeIndexSequence;
+
+template < size_t _Num, size_t... _Index >
+struct MakeIndexSequence< _Num, IndexSequence<_Index...> > : MakeIndexSequence< _Num - 1, IndexSequence< _Index..., sizeof...(_Index) > > { };
+
+template < size_t... _Index >
+struct MakeIndexSequence< 0, IndexSequence<_Index...> >
 {
-#include "func_wrappers_type.inl"
+    using Type = IndexSequence<_Index...>;
 };
 
-template < typename _PfnType, _PfnType Fn_ >
-struct FuncWrapper< _PfnType, Fn_, void >
+/** \brief 函数特征 */
+#include "func_traits.inl"
+
+/** \brief Runable模板 */
+#include "func_runable.inl"
+
+/** \brief Invoker模板 */
+#include "func_invoker.inl"
+
+/** \brief 函数包装,用来将不同调用约定的函数统一包装成默认约定 */
+template < typename _PfnType, _PfnType pfn >
+struct FuncWrapper
 {
-#include "func_wrappers_void.inl"
+    template < typename... _ArgType >
+    static typename FuncTraits<_PfnType>::ReturnType func( _ArgType&& ...arg )
+    {
+        return (*pfn)( std::forward<_ArgType>(arg)... );
+    }
 };
 
 /** \brief MAP赋值器 */
@@ -393,31 +381,34 @@ class MembersWrapper
 private:
     _TargetCls * _data;
 
-    MembersWrapper( MembersWrapper const & other );
-#ifndef MOVE_SEMANTICS_DISABLED
-    MembersWrapper( MembersWrapper && other );
-#endif
+    MembersWrapper( MembersWrapper const & other ) = delete;
 public:
-    MembersWrapper() : _data(0) { }
+    MembersWrapper() : _data(nullptr) { }
 
+    /** \brief 拷贝赋值，必须保证create()已经调用 */
     MembersWrapper & operator = ( MembersWrapper const & other )
     {
         if ( &other != this )
         {
-            //this->create(); // 赋值不应该要这句
             *_data = *other._data;
         }
         return *this;
     }
 
 #ifndef MOVE_SEMANTICS_DISABLED
+    MembersWrapper( MembersWrapper && other )
+    {
+        _data = other._data;
+        other._data = nullptr;
+    }
+    /** \brief 移动赋值，不用保证create()已经调用 */
     MembersWrapper & operator = ( MembersWrapper && other )
     {
         if ( &other != this )
         {
             this->destroy();
             _data = other._data;
-            other._data = 0;
+            other._data = nullptr;
         }
         return *this;
     }
@@ -429,42 +420,16 @@ public:
         if ( _data )
         {
             delete (_TargetCls *)_data;
-            _data = 0;
+            _data = nullptr;
         }
     }
+
     /** \brief 必须在使用者类的构造函数里第一个调用 */
-    void create()
+    template < typename... _ArgType >
+    void create( _ArgType&&... arg )
     {
         this->destroy();
-        _data = new _TargetCls;
-    }
-
-    template < typename _Arg1 >
-    void create( _Arg1 a1 )
-    {
-        this->destroy();
-        _data = new _TargetCls(a1);
-    }
-
-    template < typename _Arg1, typename _Arg2 >
-    void create( _Arg1 a1, _Arg2 a2 )
-    {
-        this->destroy();
-        _data = new _TargetCls( a1, a2 );
-    }
-
-    template < typename _Arg1, typename _Arg2, typename _Arg3 >
-    void create( _Arg1 a1, _Arg2 a2, _Arg3 a3 )
-    {
-        this->destroy();
-        _data = new _TargetCls( a1, a2, a3 );
-    }
-
-    template < typename _Arg1, typename _Arg2, typename _Arg3, typename _Arg4 >
-    void create( _Arg1 a1, _Arg2 a2, _Arg3 a3, _Arg4 a4 )
-    {
-        this->destroy();
-        _data = new _TargetCls( a1, a2, a3, a4 );
+        _data = new _TargetCls( std::forward<_ArgType>(arg)... );
     }
 
     _TargetCls * operator -> ()
@@ -485,7 +450,7 @@ public:
     }
     operator bool() const
     {
-        return _data != 0;
+        return _data != nullptr;
     }
 };
 
@@ -504,15 +469,29 @@ public:
     virtual char const * what() const throw() { return _errStr.c_str(); }
 };
 
+/** \brief 判断一个字符串值是否在一个字符串数组里,默认大小写敏感 */
+WINUX_FUNC_DECL(bool) ValueIsInArray( StringArray const & arr, String const & val, bool caseInsensitive = false );
+
+/** \brief 随机数,随机产生n1~n2的数字. 包括n1,n2本身 */
+WINUX_FUNC_DECL(int) Random( int n1, int n2 );
+
 // -------------------------------------------------------------------------------
 class GrowBuffer;
+
 /** \brief 缓冲区,表示内存中一块2进制数据(利用malloc/realloc进行内存分配) */
 class WINUX_DLL Buffer
 {
 public:
+    /** \brief 默认构造函数 */
     Buffer();
-    /** \brief 从一个缓冲区创建Buffer,可以指定是否为窥视模式 */
+    /** \brief 构造函数1 从一个缓冲区创建Buffer,可以指定是否为窥视模式
+     *
+     *  处于窥视模式时将不负责管理资源的释放 */
     Buffer( void * buf, uint size, bool isPeek = false );
+    /** \brief 构造函数2 从一个AnsiString创建Buffer,可以指定是否为窥视模式
+     *
+     *  处于窥视模式时将不负责管理资源的释放 */
+    Buffer( AnsiString const & data, bool isPeek = false );
     virtual ~Buffer();
     Buffer( Buffer const & other );
     Buffer & operator = ( Buffer const & other );
@@ -528,34 +507,68 @@ public:
     Buffer & operator = ( GrowBuffer && other );
 #endif
 
-    /** \brief 设置缓冲区 */
-    void setBuf( void * buf, uint size, bool isPeek = false );
+    /** \brief 设置缓冲区,当isPeek为false时拷贝数据缓冲区 */
+    void setBuf( void * buf, uint size, uint capacity, bool isPeek );
 
-    /** \brief 分配内存 */
-    void alloc( uint size );
+    /** \brief 设置缓冲区,当isPeek为false时拷贝数据缓冲区 */
+    void setBuf( void * buf, uint size, bool isPeek ) { this->setBuf( buf, size, size, isPeek ); }
 
-    /** \brief 调整实际分配空间的大小,保留数据*/
-    void realloc( uint newSize );
+    /** \brief 分配容量大小,当setDataSize为true时设置数据长度 */
+    void alloc( uint capacity, bool setDataSize = true );
 
-    /** \brief 把窥探模式变为拷贝模式 */
-    bool peekCopy();
+    /** \brief 重新调整容量的大小,保留数据内容
+     *
+     *  如果新的容量小于数据大小,多余的数据被丢弃 */
+    void realloc( uint newCapacity );
+
+    /** \brief 把窥探模式变为拷贝模式，如果copyCapacity为true时连容量也一起拷贝，否则只拷贝数据。 */
+    bool peekCopy( bool copyCapacity = false );
 
     /** \brief 释放缓冲区 */
-    virtual void free();
+    void free();
 
     /** \brief 暴露缓冲区指针 */
     void * getBuf() const { return _buf; }
 
-    /** \brief 获取数据大小*/
-    virtual uint getSize() const;
+    template < typename _Ty >
+    _Ty * getBuf() const { return reinterpret_cast<_Ty *>(_buf); }
+
+    winux::byte & operator [] ( int i ) { return reinterpret_cast<winux::byte *>(_buf)[i]; }
+    winux::byte const & operator [] ( int i ) const { return reinterpret_cast<winux::byte const *>(_buf)[i]; }
+
+    /** \brief 获取数据大小 */
+    uint getSize() const { return _dataSize; }
+
+    /** \brief 设置数据大小，不能超过容量大小（不建议外部调用） */
+    void _setSize( uint dataSize ) { _dataSize = ( dataSize > _capacity ? _capacity : dataSize ); }
+
+    /** \brief 获取容量大小 */
+    uint getCapacity() const { return _capacity; }
+
+    /** \brief 判断是否为一个有效的Buffer */
+    operator bool() const { return _buf != NULL; }
+
+    /** \brief 转换到字符串 */
+    template < typename _ChTy >
+    std::basic_string<_ChTy> toString() const
+    {
+        typedef typename std::basic_string<_ChTy>::value_type CharType;
+        return std::basic_string<_ChTy>( (CharType*)_buf, _dataSize / sizeof(CharType) );
+    }
+    /** \brief 转换到AnsiString */
+    AnsiString toAnsi() const { return this->toString<AnsiString::value_type>(); }
+    /** \brief 转换到UnicodeString */
+    UnicodeString toUnicode() const { return this->toString<UnicodeString::value_type>(); }
+
 protected:
-    virtual void * _alloc( uint size );
-    virtual void * _realloc( void * p, uint newSize );
-    virtual void _free( void * p );
+    static void * _Alloc( uint size );
+    static void * _Realloc( void * p, uint newSize );
+    static void _Free( void * p );
 
     void * _buf;
-    uint _actualSize;
-    bool _isPeek;
+    uint _dataSize; // 数据的大小
+    uint _capacity; // 容量
+    bool _isPeek; // 是否为窥视模式
 
     friend class GrowBuffer;
 };
@@ -565,7 +578,7 @@ class WINUX_DLL GrowBuffer : public Buffer
 {
 public:
     /** \brief 构造函数，初始化缓冲区的大小 */
-    explicit GrowBuffer( uint initSize = 0 );
+    explicit GrowBuffer( uint capacity = 0 );
     GrowBuffer( GrowBuffer const & other );
     GrowBuffer & operator = ( GrowBuffer const & other );
     explicit GrowBuffer( Buffer const & other );
@@ -582,19 +595,19 @@ public:
     GrowBuffer & operator = ( Buffer && other );
 #endif
 
-    virtual void free();
-    /** \brief 获取数据大小 */
-    virtual uint getSize() const;
     /** \brief 添加数据 */
-    void append( void * data, uint size );
+    void append( void const * data, uint size );
+
+    /** \brief 添加数据 */
+    void append( AnsiString const & data ) { this->append( data.c_str(), (uint)data.size() ); }
+
+    /** \brief 添加数据 */
+    void append( Buffer const & data ) { this->append( data.getBuf(), data.getSize() ); }
+
     /** \brief 擦除数据，自动紧缩 */
     void erase( uint start, uint count = (uint)-1 );
 
-    /** \brief 获取实际分配的缓冲区大小 */
-    uint getActualSize() const { return _actualSize; }
 protected:
-    uint _dataSize; // 数据的大小
-
     friend class Buffer;
 };
 
@@ -619,7 +632,7 @@ public:
 class WINUX_DLL Mixed
 {
 public:
-    enum MixedType
+    enum MixedType : ushort
     {
     #define MixedType_ENUM_ITEM(item) item,
     #define MixedType_ENUM_ITEMSTRING(item) #item,
@@ -766,6 +779,7 @@ public:
     }
 #endif
 
+    /** \brief 析构函数 */
     ~Mixed();
 
     /** \brief 拷贝构造函数 */
@@ -861,7 +875,7 @@ public:
     /** \brief 创建一个集合,自动把先前的数据清空,并设置type为MT_COLLECTION */
     Mixed & createCollection();
     /** \brief 创建一个缓冲区,自动把先前的数据清空,并设置type为MT_BINARY */
-    Mixed & createBuffer( uint size );
+    Mixed & createBuffer( uint size = 0 );
 
     // Array/Collection有关的操作 ----------------------------------------------------------
 
@@ -873,7 +887,7 @@ public:
         MixedArray::const_iterator it;
         for ( it = this->_pArr->begin(); it != this->_pArr->end(); ++it )
             arr->push_back(*it);
-        return arr->size();
+        return (int)arr->size();
     }
 
     /** \brief 获取全部键名，必须是MT_COLLECTION类型 */
@@ -884,7 +898,7 @@ public:
         MixedArray::const_iterator it;
         for ( it = this->_pArr->begin(); it != this->_pArr->end(); ++it )
             keys->push_back(*it);
-        return keys->size();
+        return (int)keys->size();
     }
 
     /** \brief 获取映射表，必须是MT_COLLECTION类型 */
@@ -895,7 +909,7 @@ public:
         MixedMixedMap::const_iterator it;
         for ( it = this->_pMap->begin(); it != this->_pMap->end(); ++it )
             (*m)[(_KTy)it->first] = (_VTy)it->second;
-        return m->size();
+        return (int)m->size();
     }
 
     /** \brief 判断容器是否为空 */
@@ -904,7 +918,12 @@ public:
     /** \brief 获取Array/Collection元素个数
      *
      *  即使Mixed不是Array/Collection类型也不会报错，此时会返回0。 */
-    int getCount() const;
+    int getCount() const
+    {
+        if ( ( this->isArray() || this->isCollection() ) && this->_pArr != NULL )
+            return (int)this->_pArr->size();
+        return 0;
+    }
 
     /** \brief 下标操作 */
     Mixed & operator [] ( Mixed const & k );
@@ -919,43 +938,73 @@ public:
 
     /** \brief 当Mixed为Array或Collection类型时，get()能把指定'索引/Key'的元素按照指定类型取出来 */
     template < typename _Ty >
-    _Ty get( Mixed const & k ) const { return (_Ty)this->operator [] (k); }
+    _Ty get( Mixed const & k, Mixed const & defval = Mixed() ) const { return (_Ty)this->get( k, defval ); }
+
+    /** \brief 当Mixed为Array或Collection类型时，取得指定'索引/Key'的元素，不存在则返回默认值 */
+    Mixed const & get( Mixed const & k, Mixed const & defval = Mixed() ) const;
 
     /** \brief Collection获取'键值对'索引操作 */
     MixedMixedMap::value_type & getPair( int i );
     /** \brief Collection获取'键值对'索引操作 */
     MixedMixedMap::value_type const & getPair( int i ) const;
 
-    class WINUX_DLL CollectionAssigner
+    class CollectionAssigner
     {
-        Mixed * _mx;
     public:
         CollectionAssigner( Mixed * mx ) : _mx(mx) { }
-        CollectionAssigner & operator()( Mixed const & k, Mixed const & v );
+        CollectionAssigner & operator()( Mixed const & k, Mixed const & v )
+        {
+            if ( _mx->isCollection() )
+            {
+                _mx->_addUniqueKey(k);
+                _mx->_pMap->operator[](k) = v;
+            }
+            return *this;
+        }
         operator Mixed & () { return *_mx; }
+
+    private:
+        Mixed * _mx;
     };
 
     /** \brief 往Collection添加数据.
      *
      *  如果不是Collection,则自动释放之前数据,创建Collection. */
-    CollectionAssigner addPair();
+    CollectionAssigner addPair()
+    {
+        if ( this->_type != MT_COLLECTION ) this->createCollection();
+        return CollectionAssigner(this);
+    }
 
     /** \brief 往Collection添加一个pair. 非Collection类型调用此函数会抛异常. */
     Mixed & addPair( Mixed const & k, Mixed const & v );
 
-    class WINUX_DLL ArrayAssigner
+    class ArrayAssigner
     {
-        Mixed * _mx;
     public:
         ArrayAssigner( Mixed * mx ) : _mx(mx) { }
-        ArrayAssigner & operator()( Mixed const & v );
+        ArrayAssigner & operator()( Mixed const & v )
+        {
+            if ( _mx->isArray() )
+            {
+                _mx->_pArr->push_back(v);
+            }
+            return *this;
+        }
         operator Mixed & () { return *_mx; }
+
+    private:
+        Mixed * _mx;
     };
 
     /** \brief 往Array添加数据.
      *
      *  如果不是Array,则自动释放之前数据,创建Array. */
-    ArrayAssigner add();
+    ArrayAssigner add()
+    {
+        if ( this->_type != MT_ARRAY ) this->createArray();
+        return ArrayAssigner(this);
+    }
 
     /** \brief 往数组里加一个元素,返回索引值,非Array类型调用此函数会抛异常 */
     int add( Mixed const & v );
@@ -976,12 +1025,17 @@ public:
      *  非Array/Collection类型调用此函数会抛异常 */
     Mixed & merge( Mixed const & v );
 
+    /** \brief 反转容器内元素顺序
+     *
+     *  非Array/Collection类型调用此函数会抛异常 */
+    Mixed & reverse();
+
     // Buffer有关操作 --------------------------------------------------------------------------
     /** \brief 分配一块内存,自动释放先前数据,并设置type为MT_BINARY */
     void alloc( uint size );
 
-    /** \brief 把窥探模式下的MT_BINARY类型变为拷贝模式 */
-    bool peekCopy();
+    /** \brief 把窥探模式下的MT_BINARY类型变为拷贝模式，如果copyCapacity为true时连容量也一起拷贝，否则只拷贝数据。 */
+    bool peekCopy( bool copyCapacity = false );
 
     /** \brief 取得缓冲区大小 */
     int getSize() const;
@@ -1018,7 +1072,7 @@ public:
         this->_type = MT_ARRAY;
         this->_pArr = new MixedArray( arr.size() );
         uint i;
-        for ( i = 0; i < arr.size(); ++i )
+        for ( i = 0; i < (uint)arr.size(); ++i )
         {
             this->_pArr->at(i) = arr[i];
         }
@@ -1090,8 +1144,8 @@ public:
     }
 #endif
     // JSON相关操作 ------------------------------------------------------------------------
+    String myJson( bool autoKeyQuotes = true, AnsiString const & spacer = "", AnsiString const & newline = "" ) const;
     String json() const;
-    String myJson() const;
     Mixed & json( String const & jsonStr );
 
     // 类型解析功能 -------------------------------------------------------------------------

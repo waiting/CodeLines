@@ -1,4 +1,7 @@
-﻿#if defined(_MSC_VER) || defined(WIN32)
+﻿#include "system_detection.inl"
+
+#if defined(OS_WIN)
+
 #else
 #define __USE_LARGEFILE64
 #endif
@@ -8,25 +11,29 @@
 #include "filesys.hpp"
 #include "strings.hpp"
 
+#include <fstream>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 
-#include <time.h>
 #include <functional>
 
-#if defined(_MSC_VER) || defined(WIN32)
-#include <sys/utime.h>
-#include <direct.h>
+#if defined(OS_WIN)
+    #include <sys/utime.h>
+    #include <direct.h>
+    #include <io.h>
+    #include <process.h>
 #else
-#include <utime.h>
-#include <unistd.h>
-#include <errno.h>
+    #include <utime.h>
+    #include <unistd.h>
+    #include <errno.h>
 #endif
 
-#if defined(_MSC_VER) || defined(WIN32)
+#if defined(OS_WIN)
     #ifdef UNICODE
     #define _tgetcwd _wgetcwd
     #define _tchdir _wchdir
@@ -60,31 +67,54 @@
     #define _utimbuf utimbuf
     #define _utime utime
     #define _mkdir mkdir
+    // linux别名
+    #define _stricmp strcasecmp
+    #define _wcsicmp wcscasecmp
+    #define _close close
+    #define _open open
+    #define _read read
+    #define _write write
+    #define _O_RDONLY O_RDONLY
+    #define _O_CREAT O_CREAT
+    #define _O_TRUNC O_TRUNC
+    #define _O_WRONLY O_WRONLY
+    #define _O_TEXT 0
+    #define _O_BINARY 0
+    #if defined(S_IREAD) && defined(S_IWRITE)
+        #define _S_IREAD S_IREAD
+        #define _S_IWRITE S_IWRITE
+    #else
+        #define _S_IREAD S_IRUSR
+        #define _S_IWRITE S_IWUSR
+    #endif
 #endif
 
 namespace winux
 {
 
-inline static tchar * __StrRFindDirSep( String & s )
+#include "is_x_funcs.inl"
+
+inline static String::size_type __StrRFindDirSep( String const & str )
 {
-    for ( int i = s.length() - 1; i >= 0; --i  )
+    int64 i = (int64)str.length() - 1;
+    for ( ; i >= 0; i-- )
     {
-        if ( s[i] == '/' || s[i] == '\\' )
+        if ( str[i] == '/' || str[i] == '\\' )
         {
-            return &s[i];
+            return i;
         }
     }
-    return NULL;
+    return String::npos;
 }
 
 WINUX_FUNC_IMPL(String) GetExecutablePath( void )
 {
     String path;
     path.resize(512);
-#if defined(__GNUC__) && !defined(WIN32)
-    readlink( "/proc/self/exe", &path[0], path.size() );
+#if defined(OS_WIN)
+    GetModuleFileName( NULL, &path[0], (DWORD)path.size() );
 #else
-    GetModuleFileName( NULL, &path[0], path.size() );
+    readlink( "/proc/self/exe", &path[0], path.size() );
 #endif
     return path.c_str();
 }
@@ -92,38 +122,32 @@ WINUX_FUNC_IMPL(String) GetExecutablePath( void )
 WINUX_FUNC_IMPL(String) FilePath( String const & fullPath, String * fileName )
 {
     String path;
-    String buffer = fullPath;
-    tchar * psz = __StrRFindDirSep(buffer);
-    if ( psz != NULL )
+    String::size_type pos = __StrRFindDirSep(fullPath);
+    if ( pos != String::npos )
     {
-        *psz = 0;
-        path = buffer.c_str();
-        if ( fileName != NULL ) *fileName = psz + 1;
+        path = fullPath.substr( 0, pos );
+        if ( fileName != NULL ) *fileName = fullPath.substr( pos + 1 );
     }
     else
     {
         path = TEXT("");
-        if ( fileName != NULL ) *fileName = buffer.c_str();
+        if ( fileName != NULL ) *fileName = fullPath;
     }
     return path;
 }
 
 WINUX_FUNC_IMPL(String) FileTitle( String const & fileName, String * extName )
 {
-    String temp = fileName;
     String fileTitle;
-    tchar * pszFile = temp.empty() ? (tchar *)TEXT("") : &temp[0];
-    tchar * psz;
-    psz = _tcsrchr( pszFile, '.' );
-    if ( psz != NULL )
+    String::size_type pos = fileName.rfind('.');
+    if ( pos != String::npos )
     {
-        *psz = 0;
-        fileTitle = pszFile;
-        if ( extName != NULL ) *extName = psz + 1;
+        fileTitle = fileName.substr( 0, pos );
+        if ( extName != NULL ) *extName = fileName.substr( pos + 1 );
     }
     else
     {
-        fileTitle = pszFile;
+        fileTitle = fileName;
         if ( extName != NULL ) *extName = TEXT("");
     }
     return fileTitle;
@@ -131,14 +155,13 @@ WINUX_FUNC_IMPL(String) FileTitle( String const & fileName, String * extName )
 
 WINUX_FUNC_IMPL(bool) IsAbsPath( String const & path )
 {
-#if defined(__GNUC__) && !defined(WIN32)
-    return path.empty() ? false : path[0] == dirSep[0];
-#else
+#if defined(OS_WIN)
     return path.empty() ? false : ( ( path[0] == '/' || path[0] == '\\' ) || ( path.length() > 1 && path[1] == ':' ) );
+#else
+    return path.empty() ? false : path[0] == dirSep[0];
 #endif
 }
 
-/** 使路径规则化(末尾不带路径分割符) */
 WINUX_FUNC_IMPL(String) NormalizePath( String const & path )
 {
     StringArray pathSubs;
@@ -187,7 +210,6 @@ WINUX_FUNC_IMPL(String) NormalizePath( String const & path )
     return r;
 }
 
-/** 计算真实路径 */
 WINUX_FUNC_IMPL(String) RealPath( String const & path )
 {
     String currWorkDir;
@@ -202,12 +224,12 @@ WINUX_FUNC_IMPL(String) RealPath( String const & path )
         // 判断是绝对路径还是相对路径
         if ( path[0] == '/' || path[0] == '\\' ) // 是绝对路径，但windows上要确定逻辑盘符
         {
-        #if defined(__GNUC__) && !defined(WIN32)
-            return NormalizePath(path);
-        #else
+        #if defined(OS_WIN)
             currWorkDir.resize(512);
             _getcwd( &currWorkDir[0], sizeof(String::value_type) * 512 );
             return NormalizePath( currWorkDir.substr( 0, 2 ) + path );
+        #else
+            return NormalizePath(path);
         #endif
         }
         else if ( path.length() > 1 && path[1] == ':' ) // 是绝对路径
@@ -219,6 +241,46 @@ WINUX_FUNC_IMPL(String) RealPath( String const & path )
             currWorkDir.resize(512);
             _getcwd( &currWorkDir[0], sizeof(String::value_type) * 512 );
             return NormalizePath( currWorkDir.c_str() + dirSep + path );
+        }
+    }
+}
+
+WINUX_FUNC_IMPL(String) RealPathEx( String const & path, String const & workDirAbsPath )
+{
+    if ( workDirAbsPath.empty() )
+    {
+        return RealPath(path);
+    }
+
+    if ( path.empty() )
+    {
+        return workDirAbsPath;
+    }
+    else
+    {
+        // 判断是绝对路径还是相对路径
+        if ( path[0] == '/' || path[0] == '\\' ) // 是绝对路径，但windows上要确定逻辑盘符
+        {
+        #if defined(OS_WIN)
+            if ( workDirAbsPath.length() > 1 && workDirAbsPath[1] == ':' ) // 工作目录绝对路径是以 X: 开头
+            {
+                return NormalizePath( workDirAbsPath.substr( 0, 2 ) + path );
+            }
+            else
+            {
+                return NormalizePath(path);
+            }
+        #else
+            return NormalizePath(path);
+        #endif
+        }
+        else if ( path.length() > 1 && path[1] == ':' ) // 是绝对路径
+        {
+            return NormalizePath(path);
+        }
+        else // 是相对路径，依据工作目录路径计算
+        {
+            return NormalizePath( workDirAbsPath + DirSep + path );
         }
     }
 }
@@ -247,7 +309,7 @@ WINUX_FUNC_IMPL(bool) IsDir( String const & path )
 {
     struct _stat st = { 0 };
     int r = _stat( path.c_str(), &st );
-#if defined(_MSC_VER) || defined(WIN32)
+#if defined(OS_WIN)
     return r == 0 && ( st.st_mode & _S_IFDIR );
 #else
     return r == 0 && S_ISDIR(st.st_mode);
@@ -273,7 +335,7 @@ WINUX_FUNC_IMPL(ulong) FileSize( String const & filename )
 
 WINUX_FUNC_IMPL(uint64) FileSize64( String const & filename )
 {
-#if defined(__MINGW32__)
+#if defined(CL_MINGW)
     struct __stat64 st = { 0 };
 #else
     struct _stat64 st = { 0 };
@@ -329,9 +391,10 @@ WINUX_FUNC_IMPL(String) PathWithSep( String const & path )
     String r;
     if ( !path.empty() )
     {
-        if ( path[path.length() - 1] != '\\' || path[path.length() - 1] == '/' ) // 末尾不是分隔符
+        auto ch = path[path.length() - 1];
+        if ( ch != '\\' && ch != '/' ) // 末尾不是分隔符
         {
-            r = path + dirSep;
+            r = path + DirSep;
         }
         else // 末尾是分隔符
         {
@@ -346,7 +409,8 @@ WINUX_FUNC_IMPL(String) PathNoSep( String const & path )
     String r;
     if ( !path.empty() )
     {
-        if ( path[path.length() - 1] != '\\' || path[path.length() - 1] == '/' ) // 末尾不是分隔符
+        auto ch = path[path.length() - 1];
+        if ( ch != '\\' && ch != '/' ) // 末尾不是分隔符
         {
             r = path;
         }
@@ -511,12 +575,10 @@ WINUX_FUNC_IMPL(bool) MakeDirExists( String const & path, int mode )
             existsPath += subPath;
             if ( !DetectPath(existsPath) ) // 不存在则创建
             {
-            #if defined(_MSC_VER) || defined(WIN32)
-                if ( _mkdir( existsPath.c_str() ) )
-                    return false;
+            #if defined(OS_WIN)
+                if ( _mkdir( existsPath.c_str() ) ) return false;
             #else
-                if ( _mkdir( existsPath.c_str(), mode ) )
-                    return false;
+                if ( _mkdir( existsPath.c_str(), mode ) ) return false;
             #endif
             }
             if ( i != n - 1 )
@@ -526,9 +588,165 @@ WINUX_FUNC_IMPL(bool) MakeDirExists( String const & path, int mode )
     return true;
 }
 
+WINUX_FUNC_IMPL(AnsiString) FileGetContents( String const & filename, bool textMode )
+{
+    AnsiString content;
+    try
+    {
+        SimpleHandle<int> fd( _open( filename.c_str(), _O_RDONLY | ( textMode ? _O_TEXT : _O_BINARY ) ), -1, _close );
+        if ( fd )
+        {
+            int readBytes = 0, currRead = 0;
+            char buf[4096];
+            do
+            {
+                if ( ( currRead = _read( fd.get(), buf, 4096 ) ) < 1 ) break;
+                content.append( buf, currRead );
+                readBytes += currRead;
+            } while ( currRead > 0 );
+        }
+    }
+    catch ( std::exception const & )
+    {
+    }
+    return std::move(content);
+}
+
+WINUX_FUNC_IMPL(Buffer) FileGetContentsEx( String const & filename, bool textMode )
+{
+    GrowBuffer content;
+    try
+    {
+        SimpleHandle<int> fd( _open( filename.c_str(), _O_RDONLY | ( textMode ? _O_TEXT : _O_BINARY ) ), -1, _close );
+        if ( fd )
+        {
+            int readBytes = 0, currRead = 0;
+            char buf[4096];
+            do
+            {
+                if ( ( currRead = _read( fd.get(), buf, 4096 ) ) < 1 ) break;
+                content.append( buf, currRead );
+                readBytes += currRead;
+            } while ( currRead > 0 );
+        }
+    }
+    catch ( std::exception const & )
+    {
+    }
+    return std::move(content);
+}
+
+WINUX_FUNC_IMPL(bool) FilePutContents( String const & filename, AnsiString const & content, bool textMode )
+{
+    bool r = false;
+    try
+    {
+        SimpleHandle<int> fd(
+            _open(
+                filename.c_str(),
+                _O_CREAT | _O_TRUNC | _O_WRONLY | ( textMode ? _O_TEXT : _O_BINARY ),
+            #if defined(_MSC_VER) || defined(WIN32)
+                _S_IREAD | _S_IWRITE
+            #else
+                S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH
+            #endif
+            ),
+            -1,
+            _close
+        );
+        if ( fd )
+        {
+            int writtenBytes = _write( fd.get(), content.c_str(), (uint)content.size() );
+            if ( writtenBytes == (int)content.size() )
+                r = true;
+        }
+        /*else
+        {
+            switch ( errno )
+            {
+            case EACCES:
+                printf("Tried to open read-only file for writing, file's sharing mode does not allow specified operations, or given path is directory.");
+                break;
+            case EEXIST:
+                printf("_O_CREAT and _O_EXCL flags specified, but filename already exists.");
+                break;
+            }
+        }*/
+    }
+    catch ( std::exception const & )
+    {
+    }
+    return r;
+}
+
+WINUX_FUNC_IMPL(bool) FilePutContentsEx( String const & filename, Buffer const & content, bool textMode )
+{
+    bool r = false;
+    try
+    {
+        SimpleHandle<int> fd(
+            _open(
+                filename.c_str(),
+                _O_CREAT | _O_TRUNC | _O_WRONLY | ( textMode ? _O_TEXT : _O_BINARY ),
+            #if defined(_MSC_VER) || defined(WIN32)
+                _S_IREAD | _S_IWRITE
+            #else
+                S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH
+            #endif
+            ),
+            -1,
+            _close
+        );
+        if ( fd )
+        {
+            int writtenBytes = _write( fd.get(), content.getBuf(), (uint)content.getSize() );
+            if ( writtenBytes == (int)content.getSize() )
+                r = true;
+        }
+        /*else
+        {
+            switch ( errno )
+            {
+            case EACCES:
+                printf("Tried to open read-only file for writing, file's sharing mode does not allow specified operations, or given path is directory.");
+                break;
+            case EEXIST:
+                printf("_O_CREAT and _O_EXCL flags specified, but filename already exists.");
+                break;
+            }
+        }*/
+    }
+    catch ( std::exception const & )
+    {
+    }
+    return r;
+}
+
+WINUX_FUNC_IMPL(void) WriteLog( String const & s )
+{
+    String exeFile;
+    String exePath = FilePath( GetExecutablePath(), &exeFile );
+    std::ofstream out( ( exePath + dirSep + FileTitle(exeFile) + ".log" ).c_str(), std::ios_base::out | std::ios_base::app );
+    //_getpid();
+    time_t tt = time(NULL);
+    struct tm * t = gmtime(&tt);
+    char sz[32] = "";
+    strftime( sz, 32, "%a, %d %b %Y %H:%M:%S GMT", t );
+
+    out << Format( "[pid:%d]", getpid() ) << sz << " - " << AddCSlashes(s) << std::endl;
+}
+
+WINUX_FUNC_IMPL(void) WriteBinLog( void const* data, int size )
+{
+    String exeFile;
+    String exePath = FilePath( GetExecutablePath(), &exeFile );
+    std::ofstream out( ( exePath + dirSep + FileTitle(exeFile) + ".binlog" ).c_str(), std::ios_base::out | std::ios_base::binary | std::ios_base::app );
+    out.write( (char const *)data, size );
+}
+
 
 // class DirIterator ---------------------------------------------------------------
-#if defined(_MSC_VER) || defined(WIN32)
+#if defined(OS_WIN)
 DirIterator::DirIterator( String const & path )
 : _path(path), _findFile( FindFirstFile( CombinePath( path, "*" ).c_str(), &_wfd ), INVALID_HANDLE_VALUE, FindClose ), _first(true)
 {
@@ -544,7 +762,7 @@ DirIterator::DirIterator( String const & path )
 
 bool DirIterator::next()
 {
-#if defined(_MSC_VER) || defined(WIN32)
+#if defined(OS_WIN)
     if ( _first )
     {
         _first = false;
@@ -727,13 +945,13 @@ bool File::close()
 winux::ulong File::read( void * buf, winux::ulong size )
 {
     assert( _fp != NULL );
-    return fread( buf, 1, size, _fp );
+    return (winux::ulong)fread( buf, 1, size, _fp );
 }
 
 winux::ulong File::write( void const * data, winux::ulong size )
 {
     assert( _fp != NULL );
-    return fwrite( data, 1, size, _fp );
+    return (winux::ulong)fwrite( data, 1, size, _fp );
 }
 
 winux::ulong File::write( Buffer const & buf )
@@ -823,7 +1041,7 @@ AnsiString File::buffer()
     AnsiString::value_type * s = (AnsiString::value_type *)this->buffer(&len);
     if ( !s || len < 1 )
     {
-        return "";
+        return AnsiString();
     }
     return AnsiString( s, len );
 }
@@ -874,20 +1092,16 @@ winux::ulong BlockOutFile::write( Buffer const & buf )
 
 int BlockOutFile::puts( String const & str )
 {
-    _loadedSize += str.length();
+    _loadedSize += (int)str.length();
     if ( _loadedSize > _blockSize )
     {
         this->nextBlock();
-        _loadedSize = str.length();
+        _loadedSize = (int)str.length();
     }
     return File::puts(str);
 }
 
 // class BlockInFile --------------------------------------------------------------------
-inline static bool IsDigit( char ch )
-{
-    return ch >= '0' && ch <= '9';
-}
 
 // 找并提取下划线数字部分
 static bool __FindAndExtractDigit( String const & str, String * part1, String * partDigit )

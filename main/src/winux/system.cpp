@@ -1,18 +1,15 @@
-﻿#if _MSC_VER > 1 && _MSC_VER < 1201
-#pragma warning( disable: 4786 )
-#endif
-
+﻿
 #include "utilities.hpp"
 #include "system.hpp"
 #include "strings.hpp"
 #include "smartptr.hpp"
 #include "filesys.hpp"
 
-#if defined(__GNUC__) || defined(HAVE_PTHREAD)
+#if !defined(OS_WIN) || defined(HAVE_PTHREAD)
 #include <pthread.h>
 #endif
 
-#if defined(__GNUC__) && !defined(WIN32)
+#if !defined(OS_WIN)
 #include <unistd.h>
 #include <sys/types.h>
 #include <string.h>
@@ -24,15 +21,12 @@
 
 namespace winux
 {
-
-inline static bool IsSpace( char ch )
-{
-    return ch > '\0' && ch <= ' ';
-}
+#include "is_x_funcs.inl"
 
 static void __ParseCommandLineString( winux::String const & cmd, winux::String::size_type * pI, winux::String * str )
 {
     winux::String::size_type & i = *pI;
+    winux::String::value_type quote = cmd[i];
     i++; // skip left "
 
     winux::uint slashes = 0;
@@ -40,7 +34,7 @@ static void __ParseCommandLineString( winux::String const & cmd, winux::String::
     {
         winux::String::value_type ch = cmd[i];
 
-        if ( ch == '\"' )
+        if ( ch == quote )
         {
             if ( slashes % 2 ) // 奇数个'\\'
             {
@@ -106,13 +100,18 @@ WINUX_FUNC_IMPL(int) CommandLineToArgv( winux::String const & cmd, winux::String
         else if ( ch == '^' )
         {
             i++;
-            if ( i < cmd.length() && cmd[i] == '^' )
+            if ( i < cmd.length() && ( cmd[i] == '^' || cmd[i] == '|' ||  cmd[i] == '&' ||  cmd[i] == '<' ||  cmd[i] == '>' ) )
             {
                 arg += cmd[i];
                 i++;
             }
         }
-        else if ( ch == '\"' )
+        else if (
+            ch == '\"'
+        #if !defined(OS_WIN)
+            || ch == '\''
+        #endif
+        )
         {
             if ( slashes % 2 ) // 奇数个'\\'
             {
@@ -165,7 +164,7 @@ WINUX_FUNC_IMPL(int) CommandLineToArgv( winux::String const & cmd, winux::String
     return (int)argv->size();
 }
 
-#if defined(_MSC_VER) || defined(WIN32)
+#if defined(OS_WIN)
 
 WINUX_FUNC_IMPL(HProcess) ExecCommandEx(
     winux::String const & cmd,
@@ -337,7 +336,7 @@ WINUX_FUNC_IMPL(int) ExecCommand(
     if ( !stdinStr.empty() )
     {
         DWORD bytes;
-        WriteFile( hStdinWrite, stdinStr.c_str(), stdinStr.length(), &bytes, NULL );
+        WriteFile( hStdinWrite, stdinStr.c_str(), (DWORD)stdinStr.length(), &bytes, NULL );
         CloseHandle(hStdinWrite);
     }
     if ( stdoutStr != NULL )
@@ -804,10 +803,10 @@ CommandLine::CommandLine( int argc, char * argv[], String const & paramPrefix )
 // struct MutexLockObj_Data ----------------------------------------------------------------------
 struct MutexLockObj_Data
 {
-#if defined(__GNUC__) || defined(HAVE_PTHREAD)
-    pthread_mutex_t _mutex;
-#else
+#if defined(OS_WIN) && !defined(HAVE_PTHREAD)
     HANDLE _mutex;
+#else
+    pthread_mutex_t _mutex;
 #endif
 };
 
@@ -816,19 +815,19 @@ MutexLockObj::MutexLockObj()
 {
     _self.create(); //
 
-#if defined(__GNUC__) || defined(HAVE_PTHREAD)
-    pthread_mutex_init( &_self->_mutex, NULL );
-#else
+#if defined(OS_WIN) && !defined(HAVE_PTHREAD)
     _self->_mutex = CreateMutex( NULL, FALSE, NULL );
+#else
+    pthread_mutex_init( &_self->_mutex, NULL );
 #endif
 }
 
 MutexLockObj::~MutexLockObj()
 {
-#if defined(__GNUC__) || defined(HAVE_PTHREAD)
-    pthread_mutex_destroy(&_self->_mutex);
-#else
+#if defined(OS_WIN) && !defined(HAVE_PTHREAD)
     CloseHandle(_self->_mutex);
+#else
+    pthread_mutex_destroy(&_self->_mutex);
 #endif
 
     _self.destroy(); //
@@ -836,28 +835,28 @@ MutexLockObj::~MutexLockObj()
 
 bool MutexLockObj::tryLock()
 {
-#if defined(__GNUC__) || defined(HAVE_PTHREAD)
-    return pthread_mutex_trylock(&_self->_mutex) == 0;
-#else
+#if defined(OS_WIN) && !defined(HAVE_PTHREAD)
     return WaitForSingleObject( _self->_mutex, 0 ) == WAIT_OBJECT_0;
+#else
+    return pthread_mutex_trylock(&_self->_mutex) == 0;
 #endif
 }
 
 bool MutexLockObj::lock()
 {
-#if defined(__GNUC__) || defined(HAVE_PTHREAD)
-    return pthread_mutex_lock(&_self->_mutex) == 0;
-#else
+#if defined(OS_WIN) && !defined(HAVE_PTHREAD)
     return WaitForSingleObject( _self->_mutex, INFINITE ) == WAIT_OBJECT_0;
+#else
+    return pthread_mutex_lock(&_self->_mutex) == 0;
 #endif
 }
 
 bool MutexLockObj::unlock()
 {
-#if defined(__GNUC__) || defined(HAVE_PTHREAD)
-    return pthread_mutex_unlock(&_self->_mutex) == 0;
-#else
+#if defined(OS_WIN) && !defined(HAVE_PTHREAD)
     return ReleaseMutex(_self->_mutex) != 0;
+#else
+    return pthread_mutex_unlock(&_self->_mutex) == 0;
 #endif
 }
 
@@ -870,7 +869,24 @@ struct DllLoader_Data
 // class DllLoader ------------------------------------------------------------------------
 String DllLoader::GetModulePath( void * funcInModule )
 {
-#if defined(__GNUC__) && !defined(WIN32)
+#if defined(OS_WIN)
+    MEMORY_BASIC_INFORMATION mbi;
+    HMODULE hMod = ( ( ::VirtualQuery( funcInModule, &mbi, sizeof(mbi) ) != 0 ) ? (HMODULE)mbi.AllocationBase : NULL );
+
+    AnsiString sz;
+    DWORD dwSize = MAX_PATH >> 1;
+    DWORD dwGet = 0;
+    //DWORD dwError;
+    do
+    {
+        dwSize <<= 1;
+        sz.resize(dwSize);
+        dwGet = GetModuleFileName( hMod, &sz[0], dwSize );
+        //dwError = GetLastError();
+    }
+    while ( dwSize == dwGet /*&& dwError == ERROR_INSUFFICIENT_BUFFER*/ ); // 由于WinXP的错误码与其他的Win不同，所以这里不判断错误码了。只要接收大小和空间大小一样，即视为空间不足。
+    return AnsiString( sz.c_str(), dwGet );
+#else
     Dl_info dlinfo = { 0 };
     int ret = 0;
     ret = dladdr( funcInModule, &dlinfo );
@@ -882,23 +898,6 @@ String DllLoader::GetModulePath( void * funcInModule )
     {
         return dlinfo.dli_fname;
     }
-#else
-    MEMORY_BASIC_INFORMATION mbi;
-    HMODULE hMod = ( ( ::VirtualQuery( funcInModule, &mbi, sizeof(mbi) ) != 0 ) ? (HMODULE)mbi.AllocationBase : NULL );
-
-    AnsiString sz;
-    DWORD dwSize = MAX_PATH >> 1;
-    DWORD dwGet = 0;
-    do
-    {
-        dwSize <<= 1;
-        sz.resize(dwSize);
-        dwGet = GetModuleFileName( hMod, &sz[0], dwSize );
-        //DWORD dwError = GetLastError();
-        //ERROR_INSUFFICIENT_BUFFER;
-    }
-    while ( dwSize == dwGet );
-    return sz.c_str();
 #endif
 }
 
@@ -909,7 +908,7 @@ DllLoader::DllLoader() : _hDllModule(NULL)
 
 DllLoader::DllLoader( String const & dllName ) : _hDllModule(NULL), dllModuleFile(dllName)
 {
-#if defined(_MSC_VER) || defined(WIN32)
+#if defined(OS_WIN)
     _hDllModule = LoadLibrary( dllName.c_str() );
 #else
     _hDllModule = dlopen( dllName.c_str(), RTLD_LAZY );
@@ -920,18 +919,18 @@ DllLoader::~DllLoader()
 {
     if ( _hDllModule )
     {
-#if defined(_MSC_VER) || defined(WIN32)
+    #if defined(OS_WIN)
         FreeLibrary(_hDllModule);
-#else
+    #else
         dlclose(_hDllModule);
-#endif
+    #endif
         _hDllModule = NULL;
     }
 }
 
 char const * DllLoader::errStr() const
 {
-#if defined(_MSC_VER) || defined(WIN32)
+#if defined(OS_WIN)
     if ( !*this )
     {
         return "The DLL is not found or hasn't access permission or the file is not a DLL.";
@@ -942,17 +941,17 @@ char const * DllLoader::errStr() const
 #endif
 }
 
-int (* DllLoader::funcAddr( AnsiString const & funcName ) )()
+void (* DllLoader::funcAddr( AnsiString const & funcName ) )()
 {
     if ( !_hDllModule )
     {
         throw DllLoaderError( DllLoaderError::DllLoader_ModuleNoLoaded, "`" + dllModuleFile + "` module is not loaded" );
     }
 
-#if defined(_MSC_VER) || defined(WIN32)
-    return (int(*)())GetProcAddress( _hDllModule, funcName.c_str() );
+#if defined(OS_WIN)
+    return (void(*)())GetProcAddress( _hDllModule, funcName.c_str() );
 #else
-    return (int(*)())dlsym( _hDllModule, funcName.c_str() );
+    return (void(*)())dlsym( _hDllModule, funcName.c_str() );
 #endif
 
 }

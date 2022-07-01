@@ -7,9 +7,9 @@ namespace winux
 {
 
 /** \brief 颜色属性标记 */
-enum ConsoleColorAttrFlags
+enum ConsoleColorAttrFlags : winux::ushort
 {
-#if defined(_MSC_VER) || defined(WIN32)
+#if defined(OS_WIN)
     fgBlack = 0,
     bgBlack = 0,
 
@@ -90,18 +90,17 @@ enum ConsoleColorAttrFlags
 
 };
 
-#if defined(_MSC_VER) || defined(WIN32)
+#if defined(OS_WIN)
 #else
 extern WINUX_DLL char const * __TerminalFgColorAttrs[];
 extern WINUX_DLL char const * __TerminalBgColorAttrs[];
 
 #endif
 
-template < typename _VarType >
-class ConsoleAttrT
+class WINUX_DLL ConsoleAttr
 {
 private:
-#if defined(_MSC_VER) || defined(WIN32)
+#if defined(OS_WIN)
     WORD _wPrevAttributes;
     WORD _wAttributes;
     HANDLE _hStdHandle;
@@ -109,60 +108,25 @@ private:
     winux::String _strAttr;
 #endif
     bool _isSetBgColor;
+public:
+    ConsoleAttr( winux::ushort attr, bool isSetBgColor = false );
+
+    void modify() const;
+
+    void resume() const;
+};
+
+template < typename _VarType >
+class ConsoleAttrT : public ConsoleAttr
+{
+private:
     _VarType & _v;
 public:
-    ConsoleAttrT( winux::ushort attr, _VarType const & v, bool isSetBgColor = false ) :
-        _isSetBgColor(isSetBgColor),
-        _v( const_cast<_VarType &>(v) )
+    ConsoleAttrT( winux::ushort attr, _VarType const & v, bool isSetBgColor = false ) : ConsoleAttr( attr, isSetBgColor ), _v( const_cast<_VarType&>(v) )
     {
-#if defined(_MSC_VER) || defined(WIN32)
-        _wAttributes = attr;
-
-        CONSOLE_SCREEN_BUFFER_INFO csbi = { 0 };
-        _hStdHandle = GetStdHandle(STD_OUTPUT_HANDLE);
-        GetConsoleScreenBufferInfo( _hStdHandle, &csbi );
-        _wPrevAttributes = csbi.wAttributes;
-#else
-        union
-        {
-            winux::byte bAttr[2];
-            winux::ushort usAttr;
-        } tmp;
-        tmp.usAttr = attr;
-
-        this->_strAttr = __TerminalFgColorAttrs[ tmp.bAttr[0] ];
-        if ( tmp.bAttr[1] )
-        {
-            this->_strAttr += ";";
-            this->_strAttr += __TerminalBgColorAttrs[ tmp.bAttr[1] ];
-        }
-#endif
-    }
-
-    void modify() const
-    {
-#if defined(_MSC_VER) || defined(WIN32)
-        SetConsoleTextAttribute( _hStdHandle, _wAttributes | ( _wPrevAttributes & ( _isSetBgColor ? 0xFF00 : 0xFFF0 ) ) );
-#else
-        std::cout << "\033[" << this->_strAttr << "m";
-#endif
-    }
-
-    void resume() const
-    {
-#if defined(_MSC_VER) || defined(WIN32)
-        SetConsoleTextAttribute( _hStdHandle, _wPrevAttributes );
-#else
-        std::cout << "\033[0m";
-#endif
     }
 
     _VarType & val() const { return _v; }
-
-    template < typename _ValTy >
-    friend std::ostream & operator << ( std::ostream & o, ConsoleAttrT<_ValTy> & tr );
-    template < typename _ValTy >
-    friend std::istream & operator >> ( std::istream & in, ConsoleAttrT<_ValTy> & tr );
 
 };
 
@@ -188,6 +152,45 @@ template < typename _VarType >
 inline ConsoleAttrT<_VarType> ConsoleColor( winux::ushort attr, _VarType const & v, bool isSetBgColor = false )
 {
     return ConsoleAttrT<_VarType>( attr, v, isSetBgColor );
+}
+
+class WINUX_DLL ConsoleOuputMutexScopeGuard
+{
+public:
+    ConsoleOuputMutexScopeGuard();
+    ~ConsoleOuputMutexScopeGuard();
+private:
+    DISABLE_OBJECT_COPY(ConsoleOuputMutexScopeGuard)
+};
+
+inline static void OutputV()
+{
+}
+
+template < typename _Ty, typename... _ArgType >
+inline static void OutputV( _Ty&& a, _ArgType&& ... arg )
+{
+    std::cout << a;
+    OutputV( std::forward<_ArgType>(arg)... );
+}
+
+template < typename... _ArgType >
+inline static void ColorOutputLine( winux::ConsoleAttr const & ca, _ArgType&& ... arg )
+{
+    ConsoleOuputMutexScopeGuard guard;
+    ca.modify();
+    OutputV( std::forward<_ArgType>(arg)... );
+    ca.resume();
+    std::cout << std::endl;
+}
+
+template < typename... _ArgType >
+inline static void ColorOutput( winux::ConsoleAttr const & ca, _ArgType&& ... arg )
+{
+    ConsoleOuputMutexScopeGuard guard;
+    ca.modify();
+    OutputV( std::forward<_ArgType>(arg)... );
+    ca.resume();
 }
 
 } // namespace winux

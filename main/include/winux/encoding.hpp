@@ -73,10 +73,10 @@ WINUX_FUNC_DECL(AnsiString) EncryptContent( AnsiString const & content );
 /** \brief 内容解密，与EncryptContent()配套 */
 WINUX_FUNC_DECL(AnsiString) DecryptContent( AnsiString const & encryptContent );
 
-#define EncryptCArray(data) EncryptContent( BufferToAnsiString( data, sizeof(data) ) )
-#define EncryptBuffer( buf, size ) EncryptContent( BufferToAnsiString( buf, size ) )
-#define DecryptCArray(data) DecryptContent( BufferToAnsiString( data, sizeof(data) ) )
-#define DecryptBuffer( buf, size ) DecryptContent( BufferToAnsiString( buf, size ) )
+#define EncryptCArray(data) EncryptContent( CBufferToAnsiString( data, sizeof(data) ) )
+#define EncryptCBuffer( buf, size ) EncryptContent( CBufferToAnsiString( buf, size ) )
+#define DecryptCArray(data) DecryptContent( CBufferToAnsiString( data, sizeof(data) ) )
+#define DecryptCBuffer( buf, size ) DecryptContent( CBufferToAnsiString( buf, size ) )
 
 
 } // namespace winux

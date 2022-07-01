@@ -1,60 +1,36 @@
-﻿#if defined(_MSC_VER)
-#pragma warning ( disable : 4786 )
-#pragma warning ( disable : 4996 )
+﻿#include "system_detection.inl"
+
+#if defined(CL_MINGW) // for mingw
+    #ifdef __STRICT_ANSI__
+    #undef __STRICT_ANSI__
+    #endif
 #endif
 
 #include "utilities.hpp"
-#include "json.hpp"
-#include "smartptr.hpp"
 #include "strings.hpp"
-#include "filesys.hpp"
+#include "json.hpp"
 #include "time.hpp"
-#include <fstream>
-#include <algorithm>
+
 #include <iomanip>
 #include <string.h>
-#include <stdlib.h>
-#include <time.h>
-#include <fcntl.h>
-#include <sys/stat.h>
 
-#if defined(_MSC_VER) || defined(WIN32)
+#if defined(OS_WIN)
 
-#include <io.h>
-#include <process.h>
+#else // OS_LINUX
 
-#ifdef __GNUC__ // for mingw
-_CRTIMP int __cdecl __MINGW_NOTHROW _stricmp (const char*, const char*);
-_CRTIMP int __cdecl __MINGW_NOTHROW swprintf (wchar_t*, const wchar_t*, ...);
-_CRTIMP int __cdecl __MINGW_NOTHROW _wcsicmp (const wchar_t*, const wchar_t*);
-#endif
+    #include <unistd.h>
+    #include <errno.h>
 
-#else
-
-#include <unistd.h>
-#include <errno.h>
-
-// linux别名
-#define _stricmp strcasecmp
-#define _close close
-#define _open open
-#define _read read
-#define _write write
-#define _O_RDONLY O_RDONLY
-#define _O_CREAT O_CREAT
-#define _O_TRUNC O_TRUNC
-#define _O_WRONLY O_WRONLY
-#define _O_TEXT 0
-#if defined(S_IREAD) && defined(S_IWRITE)
-#define _S_IREAD S_IREAD
-#define _S_IWRITE S_IWRITE
-#else
-#define _S_IREAD S_IRUSR
-#define _S_IWRITE S_IWUSR
-#endif
-#define _wcsicmp wcscasecmp
+    // linux别名
+    #define _stricmp strcasecmp
+    #define _wcsicmp wcscasecmp
+    #define _close close
+    #define _open open
+    #define _read read
+    #define _write write
 
 #endif
+
 
 namespace winux
 {
@@ -73,74 +49,6 @@ WINUX_FUNC_IMPL(bool) ValueIsInArray( StringArray const & arr, String const & va
     return false;
 }
 
-WINUX_FUNC_IMPL(String) FileGetContents( String const & filename )
-{
-    String content;
-    try
-    {
-        SimpleHandle<int> fd( _open( filename.c_str(), _O_RDONLY | _O_TEXT ), -1, _close );
-        if ( fd )
-        {
-            int readBytes = 0, currRead = 0;
-            char buf[4096];
-            do
-            {
-                memset( buf, 0, 4096 );
-                if ( ( currRead = _read( fd.get(), buf, 4096 ) ) < 1 ) break;
-                content.append( buf, currRead );
-                readBytes += currRead;
-            } while ( currRead > 0 );
-        }
-    }
-    catch ( std::exception const & )
-    {
-    }
-    return content;
-}
-
-WINUX_FUNC_IMPL(bool) FilePutContents( String const & filename, String const & str )
-{
-    bool r = false;
-    try
-    {
-        SimpleHandle<int> fd(
-            _open(
-                filename.c_str(),
-                _O_CREAT | _O_TRUNC | _O_WRONLY | _O_TEXT,
-            #if defined(_MSC_VER) || defined(WIN32)
-                _S_IREAD | _S_IWRITE
-            #else
-                S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH
-            #endif
-            ),
-            -1,
-            _close
-        );
-        if ( fd )
-        {
-            int writtenBytes = _write( fd.get(), str.c_str(), str.length() );
-            if ( writtenBytes == (int)str.length() )
-                r = true;
-        }
-        /*else
-        {
-            switch ( errno )
-            {
-            case EACCES:
-                printf("Tried to open read-only file for writing, file's sharing mode does not allow specified operations, or given path is directory.");
-                break;
-            case EEXIST:
-                printf("_O_CREAT and _O_EXCL flags specified, but filename already exists.");
-                break;
-            }
-        }*/
-    }
-    catch ( std::exception const & )
-    {
-    }
-    return r;
-}
-
 WINUX_FUNC_IMPL(int) Random( int n1, int n2 )
 {
     static int seedInit = VoidReturnInt( srand, (unsigned int)GetUtcTimeMs() );
@@ -148,199 +56,7 @@ WINUX_FUNC_IMPL(int) Random( int n1, int n2 )
     return abs( rand() * rand() ) % ( abs( n2 - n1 ) + 1 ) + ( n1 < n2 ? 1 : -1 ) * n1;
 }
 
-WINUX_FUNC_IMPL(void) WriteLog( String const & s )
-{
-    String exeFile;
-    String exePath = FilePath( GetExecutablePath(), &exeFile );
-    std::ofstream out( ( exePath + dirSep + FileTitle(exeFile) + ".log" ).c_str(), std::ios_base::out | std::ios_base::app );
-    //_getpid();
-    time_t tt = time(NULL);
-    struct tm * t = gmtime(&tt);
-    char sz[32] = "";
-    strftime( sz, 32, "%a, %d %b %Y %H:%M:%S GMT", t );
-
-    out << Format( "[pid:%d]", getpid() ) << sz << " - " << AddCSlashes(s) << std::endl;
-}
-
-WINUX_FUNC_IMPL(void) WriteBinLog( void const* data, int size )
-{
-    String exeFile;
-    String exePath = FilePath( GetExecutablePath(), &exeFile );
-    std::ofstream out( ( exePath + dirSep + FileTitle(exeFile) + ".binlog" ).c_str(), std::ios_base::out | std::ios_base::binary | std::ios_base::app );
-    out.write( (char const *)data, size );
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////
-// class Configure -----------------------------------------------------------------------------
-Configure::Configure()
-{
-
-}
-
-Configure::Configure( String const & configFile )
-{
-    this->load(configFile);
-}
-
-int Configure::_FindConfigRef( String const & str, int offset, int * length, String * name )
-{
-    String ldelim = "$(";
-    String rdelim = ")";
-    *length = 0;
-    int pos1 = (int)str.find( ldelim, offset );
-    if ( pos1 == -1 ) return -1;
-    int pos2 = (int)str.find( rdelim, pos1 + ldelim.length() );
-    if ( pos2 == -1 ) return -1;
-    *length = pos2 + rdelim.length() - pos1;
-    *name = str.substr( pos1 + ldelim.length(), pos2 - pos1 - ldelim.length() );
-    return pos1;
-}
-
-String Configure::_expandVarNoStripSlashes( String const & name, StringArray * chains ) const
-{
-    if ( !this->has(name) ) return "";
-    chains->push_back(name);
-    String configVal = _rawParams.at(name);
-    String res = "";
-    int len;
-    String varName;
-    int offset = 0;
-    int pos;
-    while ( ( pos = _FindConfigRef( configVal, offset, &len, &varName ) ) != -1 )
-    {
-        res += configVal.substr( offset, pos - offset );
-        offset = pos + len;
-        res += !ValueIsInArray( *chains, varName ) ? _expandVarNoStripSlashes( varName, chains ) : "";
-    }
-    res += configVal.substr(offset);
-    chains->pop_back();
-    return res;
-}
-
-int Configure::_load( String const & configFile, StringStringMap * rawParams, StringArray * loadFileChains )
-{
-    loadFileChains->push_back( RealPath(configFile) );
-    int lineCount = 0;
-    int varsCount = 0;
-    try
-    {
-        std::ifstream fin( configFile.c_str() );
-        String line;
-        while ( std::getline( fin, line ) )
-        {
-            lineCount++;
-            String tmp = StrTrim(line);
-
-            if ( tmp.empty() || tmp[0] == '#' ) // '#'行开头表示注释,只有在行开头才表示注释
-                continue;
-
-            if ( tmp[0] == '@' ) // '@'开头表示配置命令,目前仅支持 @import other-config-file
-            {
-                int pos = (int)tmp.find(' ');
-                String commandName, commandParam;
-                if ( pos == -1 )
-                {
-                    commandName = tmp.substr(1); // 偏移1是为了 skip '@'
-                    commandParam = "";
-                }
-                else
-                {
-                    commandName = tmp.substr( 1, pos - 1 );
-                    commandParam = tmp.substr( pos + 1 );
-                }
-                if ( commandName == "import" ) // 导入外部配置
-                {
-                    String dirPath = FilePath(configFile);
-                    String confPath = commandParam;
-                    confPath = IsAbsPath(confPath) ? confPath : ( dirPath.empty() ? "" : dirPath + dirSep ) + confPath;
-                    if ( !ValueIsInArray( *loadFileChains, RealPath(confPath), true ) )
-                    {
-                        varsCount += _load( confPath, rawParams, loadFileChains );
-                    }
-                }
-                continue;
-            }
-
-            int delimPos = (int)line.find('=');
-            if ( delimPos == -1 ) // 找不到'='分隔符,就把整行当成参数名
-                (*rawParams)[line] = "";
-            else
-                (*rawParams)[ line.substr( 0, delimPos ) ] = line.substr( delimPos + 1 );
-
-            varsCount++;
-        }
-    }
-    catch ( std::exception & )
-    {
-    }
-    //loadFileChains->pop_back(); //注释掉这句，则每一个文件只载入一次
-    return varsCount;
-}
-
-int Configure::load( String const & configFile )
-{
-    _configFile = configFile;
-    StringArray loadFileChains;
-    return _load( configFile, &_rawParams, &loadFileChains );
-}
-
-#define CONFIG_VARS_SLASH_CHARS "\n\r\t\v\a\\\'\"$()"
-
-String Configure::get( String const & name, bool stripslashes, bool expand ) const
-{
-    String value;
-
-    if ( expand )
-    {
-        StringArray callChains; // 递归调用链，防止无穷递归
-        value = _expandVarNoStripSlashes( name, &callChains );
-    }
-    else
-    {
-        value = this->has(name) ? _rawParams.at(name) : "";
-    }
-
-    if ( stripslashes )
-        value = StripSlashes( value, CONFIG_VARS_SLASH_CHARS );
-
-    return value;
-}
-
-String Configure::operator [] ( String const & name ) const
-{
-    return this->has(name) ? StripSlashes( _rawParams.at(name), CONFIG_VARS_SLASH_CHARS ) : "";
-}
-
-String Configure::operator () ( String const & name ) const
-{
-    StringArray callChains; // 递归调用链，防止无穷递归
-    return StripSlashes( _expandVarNoStripSlashes( name, &callChains ), CONFIG_VARS_SLASH_CHARS );
-}
-
-void Configure::setRaw( String const & name, String const & value )
-{
-    _rawParams[name] = value;
-}
-
-void Configure::set( String const & name, String const & value )
-{
-    _rawParams[name] = AddSlashes( value, CONFIG_VARS_SLASH_CHARS );
-}
-
-bool Configure::del( String const & name )
-{
-    if ( this->has(name) )
-    {
-        _rawParams.erase(name);
-        return true;
-    }
-    return false;
-}
-
-void Configure::clear()
-{
-    _rawParams.clear();
-}
 
 // -------------------------------------------------------------------------------------------------
 /* flag values */
@@ -355,143 +71,138 @@ void Configure::clear()
 #define _I64_MIN (-9223372036854775807ll - 1ll)
 #endif
 
-static uint64 __StrToXQ( char const * nptr, char const * * endptr, int ibase, int flags )
-{
-    char const * p;
-    char c;
-    uint64 number;
-    uint digval;
-    uint64 maxval;
-
-    p = nptr;            /* p is our scanning pointer */
-    number = 0;            /* start with zero */
-
-    c = *p++;            /* read char */
-
-    while ( isspace((int)(unsigned char)c) )
-        c = *p++;        /* skip whitespace */
-
-    if (c == '-') {
-        flags |= FL_NEG;    /* remember minus sign */
-        c = *p++;
-    }
-    else if (c == '+')
-        c = *p++;        /* skip sign */
-
-    if (ibase < 0 || ibase == 1 || ibase > 36) {
-        /* bad base! */
-        if (endptr)
-            /* store beginning of string in endptr */
-            *endptr = nptr;
-        return 0L;        /* return 0 */
-    }
-    else if (ibase == 0) {
-        /* determine base free-lance, based on first two chars of
-           string */
-        if (c != '0')
-            ibase = 10;
-        else if (*p == 'x' || *p == 'X')
-            ibase = 16;
-        else
-            ibase = 8;
-    }
-
-    if (ibase == 16) {
-        /* we might have 0x in front of number; remove if there */
-        if (c == '0' && (*p == 'x' || *p == 'X')) {
-            ++p;
-            c = *p++;    /* advance past prefix */
-        }
-    }
-
-    /* if our number exceeds this, we will overflow on multiply */
-    maxval = _UI64_MAX / ibase;
-
-
-    for (;;) {    /* exit in middle of loop */
-        /* convert c to value */
-        if ( isdigit((int)(unsigned char)c) )
-            digval = c - '0';
-        else if ( isalpha((int)(unsigned char)c) )
-            digval = toupper(c) - 'A' + 10;
-        else
-            break;
-        if (digval >= (unsigned)ibase)
-            break;        /* exit loop if bad digit found */
-
-        /* record the fact we have read one digit */
-        flags |= FL_READDIGIT;
-
-        /* we now need to compute number = number * base + digval,
-           but we need to know if overflow occured.  This requires
-           a tricky pre-check. */
-
-        if (number < maxval || (number == maxval &&
-        (uint64)digval <= _UI64_MAX % ibase)) {
-            /* we won't overflow, go ahead and multiply */
-            number = number * ibase + digval;
-        }
-        else {
-            /* we would have overflowed -- set the overflow flag */
-            flags |= FL_OVERFLOW;
-        }
-
-        c = *p++;        /* read next digit */
-    }
-
-    --p;                /* point to place that stopped scan */
-
-    if (!(flags & FL_READDIGIT)) {
-        /* no number there; return 0 and point to beginning of
-           string */
-        if (endptr)
-            /* store beginning of string in endptr later on */
-            p = nptr;
-        number = 0L;        /* return 0 */
-    }
-    else if ( (flags & FL_OVERFLOW) ||
-              ( !(flags & FL_UNSIGNED) &&
-                ( ( (flags & FL_NEG) && (number > -_I64_MIN) ) ||
-                  ( !(flags & FL_NEG) && (number > _I64_MAX) ) ) ) )
-    {
-        /* overflow or signed overflow occurred */
-        errno = ERANGE;
-        if ( flags & FL_UNSIGNED )
-            number = _UI64_MAX;
-        else if ( flags & FL_NEG )
-            number = _I64_MIN;
-        else
-            number = _I64_MAX;
-    }
-    if (endptr != NULL)
-        /* store pointer to char that stopped the scan */
-        *endptr = p;
-
-    if (flags & FL_NEG)
-        /* negate result if there was a neg sign */
-        number = (uint64)(-(int64)number);
-
-    return number;            /* done. */
-}
-
-static int64 StrToInt64( AnsiString const & num_str, int ibase )
-{
-    return (int64)__StrToXQ( num_str.c_str(), NULL, ibase, 0 );
-}
-
-static uint64 StrToUint64( AnsiString const & num_str, int ibase )
-{
-    return __StrToXQ( num_str.c_str(), NULL, ibase, FL_UNSIGNED );
-}
+//inline static uint64 __StrToXQ( char const * nptr, char const * * endptr, int ibase, int flags )
+//{
+//    char const * p;
+//    char c;
+//    uint64 number;
+//    uint digval;
+//    uint64 maxval;
+//
+//    p = nptr;            /* p is our scanning pointer */
+//    number = 0;            /* start with zero */
+//
+//    c = *p++;            /* read char */
+//
+//    while ( isspace((int)(unsigned char)c) )
+//        c = *p++;        /* skip whitespace */
+//
+//    if (c == '-') {
+//        flags |= FL_NEG;    /* remember minus sign */
+//        c = *p++;
+//    }
+//    else if (c == '+')
+//        c = *p++;        /* skip sign */
+//
+//    if (ibase < 0 || ibase == 1 || ibase > 36) {
+//        /* bad base! */
+//        if (endptr)
+//            /* store beginning of string in endptr */
+//            *endptr = nptr;
+//        return 0L;        /* return 0 */
+//    }
+//    else if (ibase == 0) {
+//        /* determine base free-lance, based on first two chars of
+//           string */
+//        if (c != '0')
+//            ibase = 10;
+//        else if (*p == 'x' || *p == 'X')
+//            ibase = 16;
+//        else
+//            ibase = 8;
+//    }
+//
+//    if (ibase == 16) {
+//        /* we might have 0x in front of number; remove if there */
+//        if (c == '0' && (*p == 'x' || *p == 'X')) {
+//            ++p;
+//            c = *p++;    /* advance past prefix */
+//        }
+//    }
+//
+//    /* if our number exceeds this, we will overflow on multiply */
+//    maxval = _UI64_MAX / ibase;
+//
+//
+//    for (;;) {    /* exit in middle of loop */
+//        /* convert c to value */
+//        if ( isdigit((int)(unsigned char)c) )
+//            digval = c - '0';
+//        else if ( isalpha((int)(unsigned char)c) )
+//            digval = toupper(c) - 'A' + 10;
+//        else
+//            break;
+//        if (digval >= (unsigned)ibase)
+//            break;        /* exit loop if bad digit found */
+//
+//        /* record the fact we have read one digit */
+//        flags |= FL_READDIGIT;
+//
+//        /* we now need to compute number = number * base + digval,
+//           but we need to know if overflow occured.  This requires
+//           a tricky pre-check. */
+//
+//        if (number < maxval || (number == maxval && (uint64)digval <= _UI64_MAX % ibase)) {
+//            /* we won't overflow, go ahead and multiply */
+//            number = number * ibase + digval;
+//        }
+//        else {
+//            /* we would have overflowed -- set the overflow flag */
+//            flags |= FL_OVERFLOW;
+//        }
+//
+//        c = *p++;        /* read next digit */
+//    }
+//
+//    --p;                /* point to place that stopped scan */
+//
+//    if (!(flags & FL_READDIGIT)) {
+//        /* no number there; return 0 and point to beginning of
+//           string */
+//        if (endptr)
+//            /* store beginning of string in endptr later on */
+//            p = nptr;
+//        number = 0L;        /* return 0 */
+//    }
+//    else if ( (flags & FL_OVERFLOW) ||
+//              ( !(flags & FL_UNSIGNED) &&
+//                ( ( (flags & FL_NEG) && (number > -_I64_MIN) ) ||
+//                  ( !(flags & FL_NEG) && (number > _I64_MAX) ) ) ) )
+//    {
+//        /* overflow or signed overflow occurred */
+//        errno = ERANGE;
+//        if ( flags & FL_UNSIGNED )
+//            number = _UI64_MAX;
+//        else if ( flags & FL_NEG )
+//            number = _I64_MIN;
+//        else
+//            number = _I64_MAX;
+//    }
+//    if (endptr != NULL)
+//        /* store pointer to char that stopped the scan */
+//        *endptr = p;
+//
+//    if (flags & FL_NEG)
+//        /* negate result if there was a neg sign */
+//        number = (uint64)(-(int64)number);
+//
+//    return number;            /* done. */
+//}
+//*/
 
 // class Buffer ----------------------------------------------------------------------
-Buffer::Buffer() : _buf(NULL), _actualSize(0U), _isPeek(false)
+Buffer::Buffer() : _buf(NULL), _dataSize(0U), _capacity(0U), _isPeek(false)
 {
 }
 
-Buffer::Buffer( void * buf, uint size, bool isPeek ) : _buf(NULL), _actualSize(0U), _isPeek(false)
+Buffer::Buffer( void * buf, uint size, bool isPeek ) : _buf(NULL), _dataSize(0U), _capacity(0U), _isPeek(false)
 {
     this->setBuf( buf, size, isPeek );
+}
+
+Buffer::Buffer( AnsiString const & data, bool isPeek ) : _buf(NULL), _dataSize(0U), _capacity(0U), _isPeek(false)
+{
+    this->setBuf( const_cast<char*>( data.c_str() ), (uint)data.size(), isPeek );
 }
 
 Buffer::~Buffer()
@@ -499,26 +210,27 @@ Buffer::~Buffer()
     this->free();
 }
 
-Buffer::Buffer( Buffer const & other ) : _buf(NULL), _actualSize(0U), _isPeek(false)
+Buffer::Buffer( Buffer const & other ) : _buf(NULL), _dataSize(0U), _capacity(0U), _isPeek(false)
 {
-    this->setBuf( other.getBuf(), other.getSize(), other._isPeek );
+    this->setBuf( other._buf, other._dataSize, other._isPeek );
 }
 
 Buffer & Buffer::operator = ( Buffer const & other )
 {
     if ( this != &other )
     {
-        this->setBuf( other.getBuf(), other.getSize(), other._isPeek );
+        this->setBuf( other._buf, other._dataSize, other._isPeek );
     }
     return *this;
 }
 
 #ifndef MOVE_SEMANTICS_DISABLED
 
-Buffer::Buffer( Buffer && other ) : _buf(other._buf), _actualSize(other._actualSize), _isPeek(other._isPeek)
+Buffer::Buffer( Buffer && other ) : _buf(other._buf), _dataSize(other._dataSize), _capacity(other._capacity), _isPeek(other._isPeek)
 {
     other._buf = NULL;
-    other._actualSize = 0U;
+    other._dataSize = 0U;
+    other._capacity = 0U;
     other._isPeek = false;
 }
 
@@ -529,23 +241,24 @@ Buffer & Buffer::operator = ( Buffer && other )
         this->free();
 
         this->_buf = other._buf;
-        this->_actualSize = other._actualSize;
+        this->_dataSize = other._dataSize;
+        this->_capacity = other._capacity;
         this->_isPeek = other._isPeek;
 
         other._buf = NULL;
-        other._actualSize = 0U;
+        other._dataSize = 0U;
+        other._capacity = 0U;
         other._isPeek = false;
     }
     return *this;
 }
 
-Buffer::Buffer( GrowBuffer && other ) : _buf(other._buf), _actualSize(other._dataSize), _isPeek(other._isPeek)
+Buffer::Buffer( GrowBuffer && other ) : _buf(other._buf), _dataSize(other._dataSize), _capacity(other._capacity), _isPeek(other._isPeek)
 {
     other._buf = NULL;
-    other._actualSize = 0U;
-    other._isPeek = false;
-
     other._dataSize = 0U;
+    other._capacity = 0U;
+    other._isPeek = false;
 }
 
 Buffer & Buffer::operator = ( GrowBuffer && other )
@@ -555,65 +268,81 @@ Buffer & Buffer::operator = ( GrowBuffer && other )
         this->free();
 
         this->_buf = other._buf;
-        this->_actualSize = other._dataSize;
+        this->_dataSize = other._dataSize;
+        this->_capacity = other._capacity;
         this->_isPeek = other._isPeek;
 
         other._buf = NULL;
-        other._actualSize = 0U;
-        other._isPeek = false;
-
         other._dataSize = 0U;
+        other._capacity = 0U;
+        other._isPeek = false;
     }
     return *this;
 }
 
 #endif
 
-void Buffer::setBuf( void * buf, uint size, bool isPeek /*= false */ )
+void Buffer::setBuf( void * buf, uint size, uint capacity, bool isPeek )
 {
     this->free();
     this->_buf = buf;
-    this->_actualSize = size;
+    this->_dataSize = size;
+    this->_capacity = capacity;
     this->_isPeek = isPeek;
     if ( !this->_isPeek && buf != NULL ) // 如果不是窥探模式，则需要拷贝数据
     {
-        this->_buf = _alloc(this->_actualSize);
-        memcpy( this->_buf, buf, size );
+        this->_buf = _Alloc(this->_capacity);
+        memcpy( this->_buf, buf, capacity );
     }
 }
 
-void Buffer::alloc( uint size )
+void Buffer::alloc( uint capacity, bool setDataSize )
 {
     this->free();
-    this->_actualSize = size;
+    if ( setDataSize ) this->_dataSize = capacity;
+    this->_capacity = capacity;
     this->_isPeek = false;
-    this->_buf = _alloc(size);
-    memset( this->_buf, 0, size );
+    this->_buf = _Alloc(capacity); // 分配空间
+    memset( this->_buf, 0, capacity );
 }
 
-void Buffer::realloc( uint newSize )
+void Buffer::realloc( uint newCapacity )
 {
     if ( this->_isPeek ) // 如果是窥探模式首先要变为拷贝模式
     {
-        peekCopy();
+        this->peekCopy(true);
     }
-    this->_buf = _realloc( this->_buf, newSize );
-    if ( newSize > this->_actualSize ) // 当新大小大于当前，则初始化大于的部分为0
+    this->_buf = _Realloc( this->_buf, newCapacity );
+    if ( newCapacity > this->_capacity ) // 当新容量大于当前容量，则初始化大于的部分为0
     {
-        memset( ((byte *)this->_buf) + this->_actualSize, 0, newSize - this->_actualSize );
+        memset( ((byte *)this->_buf) + this->_capacity, 0, newCapacity - this->_capacity );
     }
-    this->_actualSize = newSize;
+    this->_capacity = newCapacity;
+
+    if ( newCapacity < this->_dataSize ) // 当新容量小于数据量，数据被丢弃
+    {
+        this->_dataSize = newCapacity;
+    }
 }
 
-bool Buffer::peekCopy()
+bool Buffer::peekCopy( bool copyCapacity )
 {
     if ( this->_isPeek )
     {
         if ( this->_buf != NULL )
         {
             void * buf = this->_buf;
-            this->_buf = _alloc(this->_actualSize);
-            memcpy( this->_buf, buf, this->_actualSize );
+            if ( copyCapacity )
+            {
+                this->_buf = _Alloc(this->_capacity);
+                memcpy( this->_buf, buf, this->_capacity );
+            }
+            else
+            {
+                this->_buf = _Alloc(this->_dataSize);
+                memcpy( this->_buf, buf, this->_dataSize );
+                this->_capacity = this->_dataSize;
+            }
         }
         this->_isPeek = false;
         return true;
@@ -625,68 +354,59 @@ void Buffer::free()
 {
     if ( this->_buf != NULL && !this->_isPeek )
     {
-        _free(this->_buf);
+        _Free(this->_buf);
         this->_buf = NULL;
-        this->_actualSize = 0U;
+        this->_dataSize = 0U;
+        this->_capacity = 0U;
         this->_isPeek = false;
     }
 }
 
-winux::uint Buffer::getSize() const
+void * Buffer::_Alloc( uint size )
 {
-    return _actualSize;
+    return ::malloc(size);
 }
 
-void * Buffer::_alloc( uint size )
-{
-    return malloc(size);
-}
-
-void * Buffer::_realloc( void * p, uint newSize )
+void * Buffer::_Realloc( void * p, uint newSize )
 {
     return ::realloc( p, newSize );
 }
 
-void Buffer::_free( void * p )
+void Buffer::_Free( void * p )
 {
     ::free(p);
 }
 
 // class GrowBuffer -----------------------------------------------------------------------
-GrowBuffer::GrowBuffer( uint initSize ) : _dataSize(0)
+GrowBuffer::GrowBuffer( uint capacity )
 {
-    if ( initSize )
+    if ( capacity )
     {
-        this->alloc(initSize);
+        this->alloc( capacity, false );
     }
 }
 
 GrowBuffer::GrowBuffer( GrowBuffer const & other )
 {
-    this->setBuf( other._buf, other._actualSize, other._isPeek );
-
-    this->_dataSize = other._dataSize;
+    this->setBuf( other._buf, other._dataSize, other._capacity, other._isPeek );
 }
 
 GrowBuffer & GrowBuffer::operator = ( GrowBuffer const & other )
 {
     if ( this != &other )
     {
-        this->setBuf( other._buf, other._actualSize, other._isPeek );
-        this->_dataSize = other._dataSize;
+        this->setBuf( other._buf, other._dataSize, other._capacity, other._isPeek );
     }
     return *this;
 }
 
 GrowBuffer::GrowBuffer( Buffer const & other ) : Buffer(other)
 {
-    this->_dataSize = other._actualSize;
 }
 
 GrowBuffer & GrowBuffer::operator = ( Buffer const & other )
 {
     Buffer::operator = (other);
-    this->_dataSize = other._actualSize;
     return *this;
 }
 
@@ -694,8 +414,6 @@ GrowBuffer & GrowBuffer::operator = ( Buffer const & other )
 
 GrowBuffer::GrowBuffer( GrowBuffer && other ) : Buffer( std::move(other) )
 {
-    this->_dataSize = other._dataSize;
-    other._dataSize = 0;
 }
 
 GrowBuffer & GrowBuffer::operator = ( GrowBuffer && other )
@@ -703,15 +421,12 @@ GrowBuffer & GrowBuffer::operator = ( GrowBuffer && other )
     if ( this != &other )
     {
         Buffer::operator = ( std::move(other) );
-        this->_dataSize = other._dataSize;
-        other._dataSize = 0;
     }
     return *this;
 }
 
 GrowBuffer::GrowBuffer( Buffer && other ) : Buffer( std::move(other) )
 {
-    this->_dataSize = this->_actualSize;
 }
 
 GrowBuffer & GrowBuffer::operator = ( Buffer && other )
@@ -719,32 +434,24 @@ GrowBuffer & GrowBuffer::operator = ( Buffer && other )
     if ( this != &other )
     {
         Buffer::operator = ( std::move(other) );
-        this->_dataSize = this->_actualSize;
     }
     return *this;
 }
 
 #endif
 
-void GrowBuffer::free()
+inline static uint __AutoIncrement( uint n )
 {
-    Buffer::free();
-    this->_dataSize = 0;
-}
-
-winux::uint GrowBuffer::getSize() const
-{
-    return _dataSize;
-}
-
-static inline uint __AutoIncrement( uint n )
-{
+    //double e = log10l(n);
+    //double e1 = e < 2 ? 2 : ceil(e);
+    //printf( "size: %u, exp: %lf, auto-inc: %u, auto-inc2: %u\n", n, e, (uint)pow( 10, e1 ), n / 3 + 1 );
+    //return (uint)pow( 10, e1 );
     return n / 3 + 1;
 }
 
-void GrowBuffer::append( void * data, uint size )
+void GrowBuffer::append( void const * data, uint size )
 {
-    if ( this->_dataSize + size > this->_actualSize ) // 需要重新分配大小
+    if ( this->_dataSize + size > this->_capacity ) // 需要重新分配大小
     {
         this->realloc( this->_dataSize + size + __AutoIncrement( this->_dataSize + size ) );
     }
@@ -771,13 +478,13 @@ void GrowBuffer::erase( uint start, uint count )
 
         if ( _dataSize > 0 )
         {
-            double delta = _actualSize / (double)_dataSize;
+            double delta = _capacity / (double)_dataSize;
             if ( delta > 1.5 )
                 this->realloc(_dataSize);
         }
         else
         {
-            if ( _actualSize - _dataSize > 100 )
+            if ( _capacity - _dataSize > 100 )
             {
                 this->realloc(_dataSize);
             }
@@ -902,7 +609,7 @@ bool Mixed::MixedLess::operator () ( Mixed const & v1, Mixed const & v2 ) const
             break;
         }
     }
-    else
+    else // v1._type < v2._type
     {
         switch ( v2._type )
         {
@@ -963,27 +670,6 @@ bool Mixed::MixedLess::operator () ( Mixed const & v1, Mixed const & v2 ) const
     return ((String)v1) < ((String)v2);
 }
 
-// class Mixed::CollectionAssigner -------------------------------------------------------
-Mixed::CollectionAssigner & Mixed::CollectionAssigner::operator()( Mixed const & k, Mixed const & v )
-{
-    if ( _mx->isCollection() )
-    {
-        _mx->_addUniqueKey(k);
-        _mx->_pMap->operator[](k) = v;
-    }
-    return *this;
-}
-
-// class Mixed::ArrayAssigner -------------------------------------------------------------
-Mixed::ArrayAssigner & Mixed::ArrayAssigner::operator()( Mixed const & v )
-{
-    if ( _mx->isArray() )
-    {
-        _mx->_pArr->push_back(v);
-    }
-    return *this;
-}
-
 // enum Mixed::MixedType strings -------------------------------------------------
 static String __MixedTypeStrings[] = {
     MixedType_ENUM_ITEMLIST(MixedType_ENUM_ITEMSTRING)
@@ -995,27 +681,6 @@ String const & Mixed::TypeString( MixedType type )
 }
 
 // class Mixed ----------------------------------------------------------------------------
-void Mixed::_zeroInit()
-{
-    memset( this, 0, sizeof(Mixed) );
-    this->_type = MT_NULL;
-}
-
-/*void Mixed::_addUniqueKey( Mixed const & v )
-{
-    int i;
-    for ( i = 0; i < (int)this->_pArr->size(); ++i )
-    {
-        if ( (*this->_pArr)[i] == v )
-        {
-            return;//i;
-        }
-    }
-
-    //i = this->_pArr->size();
-    this->_pArr->push_back(v);
-    //return i;
-}*/
 
 Mixed::Mixed()
 {
@@ -1025,13 +690,13 @@ Mixed::Mixed()
 Mixed::Mixed( AnsiString const & str )
 {
     _zeroInit();
-    this->assign( str.c_str(), str.length() );
+    this->assign( str.c_str(), (int)str.length() );
 }
 
 Mixed::Mixed( UnicodeString const & str )
 {
     _zeroInit();
-    this->assign( str.c_str(), str.length() );
+    this->assign( str.c_str(), (int)str.length() );
 }
 
 Mixed::Mixed( char const * str, int len ) // 多字节字符串
@@ -1384,7 +1049,7 @@ Mixed::operator AnsiString() const
         s = MixedToJsonA( *this, false );
         break;
     case MT_BINARY:
-        return BufferToAnsiString( this->_pBuf->getBuf(), this->_pBuf->getSize() );
+        s.assign( (AnsiString::value_type*)this->_pBuf->getBuf(), this->_pBuf->getSize() / sizeof(AnsiString::value_type) );
         break;
     default:
         //s = "null";
@@ -1509,8 +1174,7 @@ Mixed::operator UnicodeString() const
         s = MixedToJsonW( *this, false );
         break;
     case MT_BINARY:
-        s.resize( this->getSize() / sizeof(wchar) + 1 );
-        memcpy( &s[0], this->getBuf(), this->getSize() );
+        s.assign( (UnicodeString::value_type*)this->_pBuf->getBuf(), this->_pBuf->getSize() / sizeof(UnicodeString::value_type) );
         break;
     default:
         //s = L"null";
@@ -1598,13 +1262,13 @@ Mixed::operator Buffer() const
         break;
     case MT_ANSI:
         {
-            buf.alloc( this->_pStr->size() );
+            buf.alloc( (uint)this->_pStr->size() );
             memcpy( buf.getBuf(), this->_pStr->c_str(), buf.getSize() );
         }
         break;
     case MT_UNICODE:
         {
-            buf.alloc( this->_pWStr->size() * sizeof(UnicodeString::value_type) );
+            buf.alloc( (uint)(this->_pWStr->size() * sizeof(UnicodeString::value_type)) );
             memcpy( buf.getBuf(), this->_pWStr->c_str(), buf.getSize() );
         }
         break;
@@ -2508,146 +2172,289 @@ bool Mixed::operator < ( Mixed const & other ) const
 // Assign -----------------------------------------------------------------------------------------------------------------
 void Mixed::assign( char const * str, int len )
 {
-    this->free();
-    str = str ? str : "";
-    this->_type = MT_ANSI; // set _type as AnsiString
-    if ( len < 0 )
+    if ( this->_type == MT_ANSI )
     {
-        this->_pStr = new AnsiString(str);
-    }
-    else if ( len > 0 )
-    {
-        this->_pStr = new AnsiString( str, len );
+        str = str ? str : "";
+        if ( len < 0 )
+        {
+            this->_pStr->assign(str);
+        }
+        else if ( len > 0 )
+        {
+            this->_pStr->assign( str, len );
+        }
+        else
+        {
+            this->_pStr->clear();
+        }
     }
     else
     {
-        this->_pStr = new AnsiString();
+        this->free();
+        str = str ? str : "";
+        this->_type = MT_ANSI; // set _type as AnsiString
+        if ( len < 0 )
+        {
+            this->_pStr = new AnsiString(str);
+        }
+        else if ( len > 0 )
+        {
+            this->_pStr = new AnsiString( str, len );
+        }
+        else
+        {
+            this->_pStr = new AnsiString();
+        }
     }
 }
 
 void Mixed::assign( wchar const * str, int len )
 {
-    this->free();
-    str = str ? str : L"";
-    this->_type = MT_UNICODE; // set _type as UnicodeString
-    if ( len < 0 )
+    if ( this->_type == MT_UNICODE )
     {
-        this->_pWStr = new UnicodeString(str);
-    }
-    else if ( len > 0 )
-    {
-        this->_pWStr = new UnicodeString( str, len );
+        str = str ? str : L"";
+        this->_type = MT_UNICODE; // set _type as UnicodeString
+        if ( len < 0 )
+        {
+            this->_pWStr->assign(str);
+        }
+        else if ( len > 0 )
+        {
+            this->_pWStr->assign( str, len );
+        }
+        else
+        {
+            this->_pWStr->clear();
+        }
     }
     else
     {
-        this->_pWStr = new UnicodeString();
+        this->free();
+        str = str ? str : L"";
+        this->_type = MT_UNICODE; // set _type as UnicodeString
+        if ( len < 0 )
+        {
+            this->_pWStr = new UnicodeString(str);
+        }
+        else if ( len > 0 )
+        {
+            this->_pWStr = new UnicodeString( str, len );
+        }
+        else
+        {
+            this->_pWStr = new UnicodeString();
+        }
     }
-
 }
 
 void Mixed::assign( bool boolVal )
 {
-    this->free();
-    this->_type = MT_BOOLEAN;
-    this->_boolVal = boolVal;
+    if ( this->_type == MT_BOOLEAN )
+    {
+        this->_boolVal = boolVal;
+    }
+    else
+    {
+        this->free();
+        this->_type = MT_BOOLEAN;
+        this->_boolVal = boolVal;
+    }
 }
 
 void Mixed::assign( byte btVal )
 {
-    this->free();
-    this->_type = MT_BYTE;
-    this->_btVal = btVal;
+    if ( this->_type == MT_BYTE )
+    {
+        this->_btVal = btVal;
+    }
+    else
+    {
+        this->free();
+        this->_type = MT_BYTE;
+        this->_btVal = btVal;
+    }
 }
 
 void Mixed::assign( short shVal )
 {
-    this->free();
-    this->_type = MT_SHORT;
-    this->_shVal = shVal;
+    if ( this->_type == MT_SHORT )
+    {
+        this->_shVal = shVal;
+    }
+    else
+    {
+        this->free();
+        this->_type = MT_SHORT;
+        this->_shVal = shVal;
+    }
 }
 
 void Mixed::assign( ushort ushVal )
 {
-    this->free();
-    this->_type = MT_USHORT;
-    this->_ushVal = ushVal;
+    if ( this->_type == MT_USHORT )
+    {
+        this->_ushVal = ushVal;
+    }
+    else
+    {
+        this->free();
+        this->_type = MT_USHORT;
+        this->_ushVal = ushVal;
+    }
 }
 
 void Mixed::assign( int iVal )
 {
-    this->free();
-    this->_type = MT_INT;
-    this->_iVal = iVal;
+    if ( this->_type == MT_INT )
+    {
+        this->_iVal = iVal;
+    }
+    else
+    {
+        this->free();
+        this->_type = MT_INT;
+        this->_iVal = iVal;
+    }
 }
 
 void Mixed::assign( uint uiVal )
 {
-    this->free();
-    this->_type = MT_UINT;
-    this->_uiVal = uiVal;
+    if ( this->_type == MT_UINT )
+    {
+        this->_uiVal = uiVal;
+    }
+    else
+    {
+        this->free();
+        this->_type = MT_UINT;
+        this->_uiVal = uiVal;
+    }
 }
 
 void Mixed::assign( long lVal )
 {
-    this->free();
-    this->_type = MT_LONG;
-    this->_lVal = lVal;
+    if ( this->_type == MT_LONG )
+    {
+        this->_lVal = lVal;
+    }
+    else
+    {
+        this->free();
+        this->_type = MT_LONG;
+        this->_lVal = lVal;
+    }
 }
 
 void Mixed::assign( ulong ulVal )
 {
-    this->free();
-    this->_type = MT_ULONG;
-    this->_ulVal = ulVal;
+    if ( this->_type == MT_ULONG )
+    {
+        this->_ulVal = ulVal;
+    }
+    else
+    {
+        this->free();
+        this->_type = MT_ULONG;
+        this->_ulVal = ulVal;
+    }
 }
 
 void Mixed::assign( float fltVal )
 {
-    this->free();
-    this->_type = MT_FLOAT;
-    this->_fltVal = fltVal;
+    if ( this->_type == MT_FLOAT )
+    {
+        this->_fltVal = fltVal;
+    }
+    else
+    {
+        this->free();
+        this->_type = MT_FLOAT;
+        this->_fltVal = fltVal;
+    }
 }
 
 void Mixed::assign( int64 i64Val )
 {
-    this->free();
-    this->_type = MT_INT64;
-    this->_i64Val = i64Val;
+    if ( this->_type == MT_INT64 )
+    {
+        this->_i64Val = i64Val;
+    }
+    else
+    {
+        this->free();
+        this->_type = MT_INT64;
+        this->_i64Val = i64Val;
+    }
 }
 
 void Mixed::assign( uint64 ui64Val )
 {
-    this->free();
-    this->_type = MT_UINT64;
-    this->_ui64Val = ui64Val;
+    if ( this->_type == MT_UINT64 )
+    {
+        this->_ui64Val = ui64Val;
+    }
+    else
+    {
+        this->free();
+        this->_type = MT_UINT64;
+        this->_ui64Val = ui64Val;
+    }
 }
 
 void Mixed::assign( double dblVal )
 {
-    this->free();
-    this->_type = MT_DOUBLE;
-    this->_dblVal = dblVal;
+    if ( this->_type == MT_DOUBLE )
+    {
+        this->_dblVal = dblVal;
+    }
+    else
+    {
+        this->free();
+        this->_type = MT_DOUBLE;
+        this->_dblVal = dblVal;
+    }
 }
 
 void Mixed::assign( Buffer const & buf )
 {
-    this->free();
-    this->_type = MT_BINARY;
-    this->_pBuf = new Buffer(buf);
+    if ( this->_type == MT_BINARY )
+    {
+        *this->_pBuf = buf;
+    }
+    else
+    {
+        this->free();
+        this->_type = MT_BINARY;
+        this->_pBuf = new Buffer(buf);
+    }
 }
 
 void Mixed::assign( void * binaryData, uint size, bool isPeek )
 {
-    this->free();
-    this->_type = MT_BINARY;
-    this->_pBuf = new Buffer( binaryData, size, isPeek );
+    if ( this->_type == MT_BINARY )
+    {
+        this->_pBuf->setBuf( binaryData, size, isPeek );
+    }
+    else
+    {
+        this->free();
+        this->_type = MT_BINARY;
+        this->_pBuf = new Buffer( binaryData, size, isPeek );
+    }
 }
 
 void Mixed::assign( Mixed * arr, uint count )
 {
-    this->free();
-    this->_type = MT_ARRAY;
-    this->_pArr = new MixedArray( arr, arr + count );
+    if ( this->_type == MT_ARRAY )
+    {
+        this->_pArr->assign( arr, arr + count );
+    }
+    else
+    {
+        this->free();
+        this->_type = MT_ARRAY;
+        this->_pArr = new MixedArray( arr, arr + count );
+    }
 }
 
 Mixed & Mixed::createString()
@@ -2664,62 +2471,73 @@ Mixed & Mixed::createUnicode()
 
 Mixed & Mixed::createArray( uint count /*= 0 */ )
 {
-    this->free();
-    this->_type = MT_ARRAY;
-    if ( count > 0 )
+    if ( this->_type == MT_ARRAY )
     {
-        this->_pArr = new MixedArray(count);
+        this->_pArr->resize(count);
     }
     else
     {
-        this->_pArr = new MixedArray();
+        this->free();
+        this->_type = MT_ARRAY;
+        if ( count > 0 )
+        {
+            this->_pArr = new MixedArray(count);
+        }
+        else
+        {
+            this->_pArr = new MixedArray();
+        }
     }
     return  *this;
 }
 
 Mixed & Mixed::createCollection()
 {
-    this->free();
-    this->_type = MT_COLLECTION;
-    this->_pArr = new MixedArray();
-    this->_pMap = new MixedMixedMap();
+    if ( this->_type == MT_COLLECTION )
+    {
+        this->_pArr->clear();
+        this->_pMap->clear();
+    }
+    else
+    {
+        this->free();
+        this->_type = MT_COLLECTION;
+        this->_pArr = new MixedArray();
+        this->_pMap = new MixedMixedMap();
+    }
     return *this;
 }
 
 Mixed & Mixed::createBuffer( uint size )
 {
-    this->free();
-    this->_type = MT_BINARY;
-    this->_pBuf = new Buffer();
-    this->_pBuf->alloc(size);
+    if ( this->_type == MT_BINARY )
+    {
+        this->_pBuf->alloc(size);
+    }
+    else
+    {
+        this->free();
+        this->_type = MT_BINARY;
+        this->_pBuf = new Buffer();
+        if ( size > 0 ) this->_pBuf->alloc(size);
+    }
     return *this;
 }
 
-// array/collection有关的操作 --------------------------------------------------------------
-int Mixed::getCount() const
-{
-    if ( ( this->isArray() || this->isCollection() ) && this->_pArr != NULL )
-    {
-        return this->_pArr->size();
-    }
-    return 0;
-}
-
+// Array/Collection有关的操作 --------------------------------------------------------------
 Mixed & Mixed::operator [] ( Mixed const & k )
 {
     if ( this->isArray() )
     {
         int i = k;
         if ( i < 0 || i >= (int)this->_pArr->size() )
-            throw MixedError( MixedError::meOutOfArrayRange, Format( "数组越界: index:%d, size:%d", i, (int)this->_pArr->size() ).c_str() );
+            throw MixedError( MixedError::meOutOfArrayRange, Format( "Array out of bound: index:%d, size:%d", i, (int)this->_pArr->size() ).c_str() );
 
         return this->_pArr->operator [] (k);
     }
     else if ( this->isCollection() )
     {
         this->_addUniqueKey(k);
-        //if ( this->_pMap->find(k) == this->_pMap->end() )
-        //    this->_pArr->push_back(k);
         return this->_pMap->operator [] (k);
     }
     else
@@ -2732,6 +2550,10 @@ Mixed const & Mixed::operator [] ( Mixed const & k ) const
 {
     if ( this->isArray() )
     {
+        int i = k;
+        if ( i < 0 || i >= (int)this->_pArr->size() )
+            throw MixedError( MixedError::meOutOfArrayRange, Format( "Array out of bound: index:%d, size:%d", i, (int)this->_pArr->size() ).c_str() );
+
         return this->_pArr->operator [] (k);
     }
     else if ( this->isCollection() )
@@ -2741,6 +2563,32 @@ Mixed const & Mixed::operator [] ( Mixed const & k ) const
     else
     {
         throw MixedError( MixedError::meUnexpectedType, this->typeString() + " can't support " + __FUNCTION__ +  + "(" + k.toAnsi() + ") const" );
+    }
+}
+
+Mixed const & Mixed::get( Mixed const & k, Mixed const & defval ) const
+{
+    switch ( this->_type )
+    {
+    case MT_ARRAY:
+        {
+            int i = k;
+            if ( i < 0 || i >= (int)this->_pArr->size() )
+                return defval;
+
+            return this->_pArr->operator [] (k);
+        }
+        break;
+    case MT_COLLECTION:
+        if ( this->_pMap->find(k) != this->_pMap->end() )
+        {
+            return this->_pMap->at(k);
+        }
+        return defval;
+        break;
+    default:
+        return defval;
+        break;
     }
 }
 
@@ -2768,15 +2616,6 @@ Mixed::MixedMixedMap::value_type const & Mixed::getPair( int i ) const
     }
 }
 
-Mixed::CollectionAssigner Mixed::addPair()
-{
-    if ( this->_type != MT_COLLECTION )
-    {
-        this->createCollection();
-    }
-    return CollectionAssigner(this);
-}
-
 Mixed & Mixed::addPair( Mixed const & k, Mixed const & v )
 {
     if ( this->isCollection() )
@@ -2791,20 +2630,11 @@ Mixed & Mixed::addPair( Mixed const & k, Mixed const & v )
     return *this;
 }
 
-Mixed::ArrayAssigner Mixed::add()
-{
-    if ( this->_type != MT_ARRAY )
-    {
-        this->createArray();
-    }
-    return ArrayAssigner(this);
-}
-
 int Mixed::add( Mixed const & v )
 {
-    if ( this->isArray() /*|| this->isCollection()*/ )
+    if ( this->isArray() )
     {
-        int i = this->_pArr->size();
+        int i = (int)this->_pArr->size();
         this->_pArr->push_back(v);
         return i;
     }
@@ -2827,7 +2657,7 @@ int Mixed::addUnique( Mixed const & v )
             }
         }
 
-        i = this->_pArr->size();
+        i = (int)this->_pArr->size();
         this->_pArr->push_back(v);
         return i;
     }
@@ -2877,13 +2707,20 @@ Mixed & Mixed::merge( Mixed const & v )
         switch ( v._type )
         {
         case MT_ARRAY:
-            this->_pArr->insert( this->_pArr->end(), v._pArr->begin(), v._pArr->end() );
+            {
+                for ( auto itVal = v._pArr->begin(); itVal != v._pArr->end(); ++itVal )
+                {
+                    this->_pArr->push_back(*itVal);
+                }
+            }
             break;
         case MT_COLLECTION:
             {
                 for ( auto itKey = v._pArr->begin(); itKey != v._pArr->end(); ++itKey )
                 {
-                    this->_pArr->push_back( v._pMap->at(*itKey) );
+                    Mixed pr;
+                    pr.addPair()( *itKey, v._pMap->at(*itKey) );
+                    this->_pArr->push_back( std::move(pr) );
                 }
             }
             break;
@@ -2900,7 +2737,7 @@ Mixed & Mixed::merge( Mixed const & v )
             {
                 for ( auto itVal = v._pArr->begin(); itVal != v._pArr->end(); ++itVal )
                 {
-                    int inx = itVal - v._pArr->begin();
+                    int inx = (int)( itVal - v._pArr->begin() );
                     this->_addUniqueKey(inx);
                     this->_pMap->operator[](inx) = *itVal;
                 }
@@ -2910,8 +2747,24 @@ Mixed & Mixed::merge( Mixed const & v )
             {
                 for ( auto itKey = v._pArr->begin(); itKey != v._pArr->end(); ++itKey )
                 {
-                    this->_addUniqueKey(*itKey);
-                    this->_pMap->operator[](*itKey) = v._pMap->at(*itKey);
+                    // 如果存在此值并且也是个容器，则继续合并
+                    if ( this->_pMap->find(*itKey) != this->_pMap->end() )
+                    {
+                        Mixed & thisMx = this->_pMap->operator[](*itKey);
+                        if ( thisMx.isContainer() )
+                        {
+                            thisMx.merge( v._pMap->at(*itKey) );
+                        }
+                        else
+                        {
+                            thisMx = v._pMap->at(*itKey);
+                        }
+                    }
+                    else
+                    {
+                        this->_addUniqueKey(*itKey);
+                        this->_pMap->operator[](*itKey) = v._pMap->at(*itKey);
+                    }
                 }
             }
             break;
@@ -2919,10 +2772,33 @@ Mixed & Mixed::merge( Mixed const & v )
             {
                 int i = 0;
                 while ( _pMap->find(i) != _pMap->end() ) i++;
-                this->_addUniqueKey(i);
+                this->_addUniqueKey( Mixed(i).toAnsi() );
                 this->_pMap->operator[](i) = v;
             }
             break;
+        }
+    }
+    else
+    {
+        throw MixedError( MixedError::meUnexpectedType, this->typeString() + " can't support " + __FUNCTION__ + "()" );
+    }
+    return *this;
+}
+
+Mixed & Mixed::reverse()
+{
+    if ( this->isCollection() || this->isArray() )
+    {
+        int j = (int)_pArr->size() - 1;
+        int i = 0;
+        while ( i < j )
+        {
+            Mixed t = std::move( _pArr->at(i) );
+            _pArr->at(i) = std::move( _pArr->at(j) );
+            _pArr->at(j) =  std::move(t);
+
+            i++;
+            j--;
         }
     }
     else
@@ -2941,11 +2817,11 @@ void Mixed::alloc( uint size )
     this->_pBuf->alloc(size);
 }
 
-bool Mixed::peekCopy()
+bool Mixed::peekCopy( bool copyCapacity )
 {
     if ( this->_type == MT_BINARY && this->_pBuf != NULL )
     {
-        return this->_pBuf->peekCopy();
+        return this->_pBuf->peekCopy(copyCapacity);
     }
     return false;
 }
@@ -3117,14 +2993,20 @@ Mixed & Mixed::ParseJson( AnsiString const & str, Mixed * val )
     return *val;
 }
 
+void Mixed::_zeroInit()
+{
+    memset( this, 0, sizeof(Mixed) );
+    this->_type = MT_NULL;
+}
+
+String Mixed::myJson( bool autoKeyQuotes, AnsiString const & spacer, AnsiString const & newline ) const
+{
+    return MixedToJsonExA( *this, autoKeyQuotes, spacer, newline );
+}
+
 String Mixed::json() const
 {
     return MixedToJson( *this, false );
-}
-
-String Mixed::myJson() const
-{
-    return MixedToJson( *this, true );
 }
 
 Mixed & Mixed::json( String const & jsonStr )
@@ -3135,13 +3017,13 @@ Mixed & Mixed::json( String const & jsonStr )
 // ostream 相关
 WINUX_FUNC_IMPL(std::ostream &) operator << ( std::ostream & o, Mixed const & m )
 {
-    o << (AnsiString)m;
+    o << m.toAnsi();
     return o;
 }
 
 WINUX_FUNC_IMPL(std::wostream &) operator << ( std::wostream & o, Mixed const & m )
 {
-    o << (UnicodeString)m;
+    o << m.toUnicode();
     return o;
 }
 

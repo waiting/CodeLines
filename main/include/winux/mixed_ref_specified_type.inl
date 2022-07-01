@@ -1,4 +1,6 @@
-﻿// Mixed 引用指定的类型
+﻿#pragma once
+
+// Mixed 引用指定的类型
 //template < MixedType _mt > struct RefSpecifiedType { };
 /*
 template <> struct RefSpecifiedType<mt> {\

@@ -1,11 +1,124 @@
 ﻿#ifndef __ARCHIVES_HPP__
 #define __ARCHIVES_HPP__
 //************************************************************************
-// 基于winux的CSV文件读取/写入
+// winux提供一些文档的读写功能
 //************************************************************************
 
 namespace winux
 {
+
+/** \brief 配置文件类 */
+class WINUX_DLL Configure
+{
+private:
+    String _configFile;
+    StringStringMap _rawParams; //!< 未StripSlashes处理的数据集合
+
+    static int _FindConfigRef( String const & str, int offset, int * length, String * name );
+    String _expandVarNoStripSlashes( String const & name, StringArray * chains ) const;
+
+    //返回加载的配置变量个数
+    int _load( String const & configFile, StringStringMap * rawParams, StringArray * loadFileChains );
+public:
+    static String const ConfigVarsSlashChars;
+
+    /** \brief 构造函数0 */
+    Configure();
+
+    /** \brief 构造函数1
+     *
+     *  \param configFile 配置文件的路径 */
+    Configure( String const & configFile );
+
+    /** \brief 载入配置文件，返回加载的配置变量个数。不会清空原数据 */
+    int load( String const & configFile );
+
+    /** \brief 判断是否含有该变量 */
+    bool has( String const & name ) const { return _rawParams.find(name) != _rawParams.end(); }
+
+    /** \brief 按指定方式获取变量值 */
+    String get( String const & name, bool stripslashes = false, bool expand = false ) const;
+
+    /** \brief 获取变量未展开的值 */
+    String operator [] ( String const & name ) const;
+
+    /** \brief 获取变量展开的值 */
+    String operator () ( String const & name ) const;
+
+    /** \brief 以RAW方式设置一个配置变量
+     *
+     * 必须是单行字符串值，特殊字符必须反转义 */
+    void setRaw( String const & name, String const & value );
+
+    /** \brief 设置一个配置变量
+     *
+     *  值会自动反转义，因此无法包含$(XXX)型的内部待展开变量，因为set()内部会自动反转义变成\\$\\(XXX\\)。
+     *  需要设置$(XXX)型内部待展开变量的请使用setRaw()。 */
+    void set( String const & name, String const & value );
+
+    /** \brief 删除一个配置变量 */
+    bool del( String const & name );
+
+    /** \brief 清空所有配置变量 */
+    void clear();
+
+    /** \brief 取得内部StringStringMap引用 */
+    StringStringMap const & getAll() const { return _rawParams; }
+};
+
+/** \brief 配置设置类 */
+class WINUX_DLL ConfigureSettings
+{
+public:
+    ConfigureSettings( String const & settingsFile = "" );
+    ~ConfigureSettings();
+    ConfigureSettings( ConfigureSettings const & other );
+    ConfigureSettings( ConfigureSettings && other );
+    ConfigureSettings & operator = ( ConfigureSettings const & other );
+    ConfigureSettings & operator = ( ConfigureSettings && other );
+
+    /** \brief 加载设置文件 */
+    int load( String const & settingsFile );
+
+    /** \brief 更新表达式并计算结果。（当你修改表达式后应该执行这个函数一次）
+     *
+     *  \param multiname 此参数不是表达式，而是一系列键名。可以用任何表达式可以识别的符号隔开（例如 > , . ），如果键名含空格应该用引号包起来。 */
+    Mixed & update( String const & multiname, String const & updateExprStr = "" );
+
+    /** \brief 以Root变量场景执行表达式并返回引用，如果不能执行则返回内部一个引用 */
+    Mixed & execRef( String const & exprStr ) const;
+    /** \brief 以Root变量场景执行表达式并返回值，如果不能执行则返回默认值 */
+    Mixed execVal( String const & exprStr, Mixed const & defval = Mixed() ) const;
+
+    /** \brief 获取此名字的设置（只读） */
+    Mixed const & operator [] ( String const & name ) const;
+    /** \brief 获取此名字的设置 */
+    Mixed & operator [] ( String const & name );
+
+    /** \brief 判断是否有此名字的设置 */
+    bool has( String const & name ) const;
+
+    /** \brief 获取此名字的设置（只读） */
+    Mixed const & get( String const & name ) const;
+    /** \brief 设置此名字的设置 */
+    ConfigureSettings & set( String const & name, Mixed const & value );
+
+    /** \brief 值 */
+    Mixed const & val() const;
+    /** \brief 值 */
+    Mixed & val();
+
+    /** \brief 表达式 */
+    Mixed const & expr() const;
+    /** \brief 表达式 */
+    Mixed & expr();
+
+private:
+
+    int _load( String const & settingsFile, winux::Mixed * collAsVal, winux::Mixed * collAsExpr, StringArray * loadFileChains );
+
+    MembersWrapper<struct ConfigureSettings_Data> _self;
+};
 
 /** \brief CSV文件写入器 */
 class WINUX_DLL CsvWriter
