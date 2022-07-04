@@ -1,5 +1,9 @@
-﻿/**
-    CodeLines [--m] [--l] [--r] [--s] [--v] ext1 [ext2] [ext3] ... <-|+> search_path ... [-o output_path[</|:>{name}.{ext}]]
+﻿
+#include "functional.hpp"
+using namespace std;
+String helpMsg = 
+R"(
+    CodeLines [--m] [--l] [--r] [--s] [--v] [--j] [--help] ext1 [ext2] [ext3] ... <-|+> search_path ... [-o output_path[</|:>{name}.{ext}]]
 
     --m:
         统计注释的行数
@@ -11,6 +15,10 @@
         静默模式
     --v:
         显示代码行详细警告信息
+    --j:
+        输出JSON式结果
+    --help:
+        显示帮助
     ext1 ext2 ext3 ...:
         当有--r时可以是正则表达式，匹配文件名。（如果要匹配扩展名可以末尾加$，ext$）
     -:
@@ -24,11 +32,7 @@
         当使用 / 时，在output_path目录输出处理后的源代码文件。
         当使用 : 时，在output_path目录按原有的目录结构输出处理后的源代码文件。
         源代码文件命名规则由之后的字符串指定，可使用的变量为{name}、{ext}，分别表示文件名和扩展名。
-
-*/
-
-#include "functional.hpp"
-using namespace std;
+)";
 
 ushort fgColorForPatterns[] = {
     fgAqua, fgRed, fgYellow, fgGreen, fgWhite, fgFuchsia, fgBlue,
@@ -304,7 +308,7 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
 
 int main( int argc, char const * argv[] )
 {
-    CommandLineVars cmdVars( argc, argv, "-o", "", "--m,--l,--r,--s,--v,--j" );
+    CommandLineVars cmdVars( argc, argv, "-o", "", "--m,--l,--r,--s,--v,--j,--help" );
     ProcessContext ctx;
     ctx.m = cmdVars.hasFlag("--m");
     ctx.l = cmdVars.hasFlag("--l");
