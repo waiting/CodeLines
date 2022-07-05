@@ -33,6 +33,41 @@ R"(
         当使用 : 时，在output_path目录按原有的目录结构输出处理后的源代码文件。
         源代码文件命名规则由之后的字符串指定，可使用的变量为{name}、{ext}，分别表示文件名和扩展名。
 )";
+/*
+JSON
+{
+    error?: 错误内容字符串,
+    search_path: [ 搜索路径, ... ],
+    result: {
+        ext1: {
+            [
+                {
+                    path: 文件路径,
+                    origin_bytes: 原文件大小,
+                    origin_lines: 原文件行数,
+                    bytes: 处理后文件大小,
+                    lines: 处理后文件行数,
+                    verbose: [ 更多信息, ...]
+                }, ...
+            ],
+            files: 文件数,
+            origin_bytes: 原文件大小,
+            origin_lines: 原文件行数,
+            bytes: 处理后文件大小,
+            lines: 处理后文件行数,
+        },
+        ext2: ...
+    },
+    total: {
+        files: 文件数,
+        origin_bytes: 原文件大小,
+        origin_lines: 原文件行数,
+        bytes: 处理后文件大小,
+        lines: 处理后文件行数,
+    }
+}
+
+*/
 
 ushort fgColorForPatterns[] = {
     fgAqua, fgRed, fgYellow, fgGreen, fgWhite, fgFuchsia, fgBlue,
@@ -63,7 +98,14 @@ bool AnalyzeParams( ProcessContext * ctx, CommandLineVars const & cmdVars )
     }
     if ( ctx->expansionMode.empty() )
     {
-        cerr << ErrorStyle("Unspecified the expansion mode of search path: + or -") << endl;
+        if ( ctx->json )
+        {
+            ctx->jsonWholeResult["error"] = "Unspecified the expansion mode of search path: + or -";
+        }
+        else
+        {
+            cerr << ErrorStyle("Unspecified the expansion mode of search path: + or -") << endl;
+        }
         return false;
     }
 
@@ -73,7 +115,14 @@ bool AnalyzeParams( ProcessContext * ctx, CommandLineVars const & cmdVars )
     }
     if ( ctx->patterns.empty() )
     {
-        cerr << ErrorStyle("Unspecified the pattern for file matching: extname or regex") << endl;
+        if ( ctx->json )
+        {
+            ctx->jsonWholeResult["error"] = "Unspecified the pattern for file matching: extname or regex";
+        }
+        else
+        {
+            cerr << ErrorStyle("Unspecified the pattern for file matching: extname or regex") << endl;
+        }
         return false;
     }
     try
@@ -86,7 +135,14 @@ bool AnalyzeParams( ProcessContext * ctx, CommandLineVars const & cmdVars )
     }
     catch ( std::regex_error const & e )
     {
-        cerr << ErrorStyle( e.what() ) << endl;
+        if ( ctx->json )
+        {
+            ctx->jsonWholeResult["error"] = e.what();
+        }
+        else
+        {
+            cerr << ErrorStyle( e.what() ) << endl;
+        }
         return false;
     }
 
@@ -96,7 +152,14 @@ bool AnalyzeParams( ProcessContext * ctx, CommandLineVars const & cmdVars )
     }
     if ( ctx->searchPaths.empty() )
     {
-        cerr << ErrorStyle("Unspecified the search path") << endl;
+        if ( ctx->json )
+        {
+            ctx->jsonWholeResult["error"] = "Unspecified the search path";
+        }
+        else
+        {
+            cerr << ErrorStyle("Unspecified the search path") << endl;
+        }
         return false;
     }
 
