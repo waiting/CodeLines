@@ -100,7 +100,7 @@ bool AnalyzeParams( ProcessContext * ctx, CommandLineVars const & cmdVars )
     {
         if ( ctx->json )
         {
-            ctx->jsonWholeResult["error"] = "Unspecified the expansion mode of search path: + or -";
+            ctx->jsonWhole["error"] = "Unspecified the expansion mode of search path: + or -";
         }
         else
         {
@@ -117,7 +117,7 @@ bool AnalyzeParams( ProcessContext * ctx, CommandLineVars const & cmdVars )
     {
         if ( ctx->json )
         {
-            ctx->jsonWholeResult["error"] = "Unspecified the pattern for file matching: extname or regex";
+            ctx->jsonWhole["error"] = "Unspecified the pattern for file matching: extname or regex";
         }
         else
         {
@@ -137,7 +137,7 @@ bool AnalyzeParams( ProcessContext * ctx, CommandLineVars const & cmdVars )
     {
         if ( ctx->json )
         {
-            ctx->jsonWholeResult["error"] = e.what();
+            ctx->jsonWhole["error"] = e.what();
         }
         else
         {
@@ -154,7 +154,7 @@ bool AnalyzeParams( ProcessContext * ctx, CommandLineVars const & cmdVars )
     {
         if ( ctx->json )
         {
-            ctx->jsonWholeResult["error"] = "Unspecified the search path";
+            ctx->jsonWhole["error"] = "Unspecified the search path";
         }
         else
         {
@@ -392,13 +392,27 @@ int main( int argc, char const * argv[] )
     }
     catch ( winux::Error const & e )
     {
-        cout << ErrorStyle( e.what() ) << endl;
+        if ( ctx.json )
+        {
+            ctx.jsonWhole["error"] = e.what();
+        }
+        else
+        {
+            cout << ErrorStyle( e.what() ) << endl;
+        }
     }
     catch ( ... )
     {
     }
 
-    cout << "In search path `" << StrJoin( "`, `", ctx.searchPaths ) << "`:" << endl;
+    if ( ctx.json )
+    {
+        ctx.jsonWhole["search_path"] = ctx.searchPaths;
+    }
+    else
+    {
+        cout << "In search path `" << StrJoin( "`, `", ctx.searchPaths ) << "`:" << endl;
+    }
     // 输出结果
     for ( auto i = 0U; i < ctx.patterns.size(); ++i )
     {

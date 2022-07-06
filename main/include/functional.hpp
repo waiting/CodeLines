@@ -28,12 +28,12 @@ struct ProcessContext
         Result() { memset( this, 0, sizeof(*this) ); }
     };
     std::map< int, Result > results; // 统计结果
-    Mixed jsonWholeResult; // JSON式全部结果
+    Mixed jsonWhole; // JSON式全部结果
     String outputPath; // 输出路径
 
     ProcessContext() : m(false), l(false), re(false), silent(false), verbose(false), json(false)
     {
-        this->jsonWholeResult.createCollection();
+        this->jsonWhole.createCollection();
     }
 };
 
