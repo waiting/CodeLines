@@ -28,6 +28,38 @@ struct ProcessContext
         Result() { memset( this, 0, sizeof(*this) ); }
     };
     std::map< int, Result > results; // 统计结果
+    /*
+    JSON
+    {
+        error?: 错误内容字符串,
+        search_path: [ 搜索路径, ... ],
+        result: {
+            ext1: {
+                files: [
+                    {
+                        path: 文件路径,
+                        origin_bytes: 原文件大小,
+                        origin_lines: 原文件行数,
+                        bytes: 处理后文件大小,
+                        lines: 处理后文件行数,
+                        verbose: [ 更多信息, ...]
+                    }, ...
+                ],
+                origin_bytes: 原文件大小,
+                origin_lines: 原文件行数,
+                bytes: 处理后文件大小,
+                lines: 处理后文件行数,
+            },
+            ext2: ...
+        },
+        total: {
+            files: 文件数,
+            origin_bytes: 原文件大小,
+            origin_lines: 原文件行数,
+            bytes: 处理后文件大小,
+            lines: 处理后文件行数,
+        }
+    } */
     Mixed jsonWhole; // JSON式全部结果
     String outputPath; // 输出路径
 
