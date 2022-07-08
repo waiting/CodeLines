@@ -18,14 +18,39 @@ struct ProcessContext
     StringArray searchPaths; // 搜索的路径
     String expansionMode; // 目录展开模式
     std::vector<std::regex> rePatterns; // 构建的正则表达式
+
+    struct OneFileResult
+    {
+        String path;
+        size_t originBytes;
+        size_t bytes;
+        size_t originLines;
+        size_t lines;
+        StringArray verbose;
+        OneFileResult() :
+            originBytes(0),
+            bytes(0),
+            originLines(0),
+            lines(0)
+        {
+        }
+    };
     struct Result
     {
-        size_t files;
+        std::vector<OneFileResult> files;
         size_t originBytes;
-        size_t processedBytes;
+        size_t bytes;
         size_t originLines;
-        size_t processedLines;
-        Result() { memset( this, 0, sizeof(*this) ); }
+        size_t lines;
+        Result() :
+            originBytes(0),
+            bytes(0),
+            originLines(0),
+            lines(0)
+        {
+            //memset( this, 0, sizeof(*this) );
+
+        }
     };
     std::map< int, Result > results; // 统计结果
     /*

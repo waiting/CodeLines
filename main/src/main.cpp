@@ -228,9 +228,9 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
     }
 
     // 记下统计结果
-    ctx->results[patternIndex].files++;
-    ctx->results[patternIndex].processedBytes += processedCodeText.length();
-    ctx->results[patternIndex].processedLines += linesThisFile;
+    //ctx->results[patternIndex].files++;
+    ctx->results[patternIndex].bytes += processedCodeText.length();
+    ctx->results[patternIndex].lines += linesThisFile;
     ctx->results[patternIndex].originBytes += contents.length();
     ctx->results[patternIndex].originLines += originCodes.size();
 
@@ -348,8 +348,19 @@ int main( int argc, char const * argv[] )
 
     if ( !AnalyzeParams( &ctx, cmdVars ) ) return 1;
 
+    if ( ctx.json )
+    {
+        ctx.jsonWhole["search_path"] = ctx.searchPaths;
+    }
+    else
+    {
+        cout << "In search path `" << StrJoin( "`, `", ctx.searchPaths ) << "`:" << endl;
+    }
+
     try
     {
+        if ( ctx.json ) ctx.jsonWhole["result"].createCollection();
+
         // 扫描文件
         DoScanCodeFiles( &ctx, "", ctx.searchPaths, [ &ctx ] ( String const & searchTopDir, auto i, String const & path, String const & f ) {
             DoProcessCodeFile( &ctx, searchTopDir, i, path, f, FileGetContents( CombinePath( path, f ) ) );
@@ -370,23 +381,15 @@ int main( int argc, char const * argv[] )
     {
     }
 
-    if ( ctx.json )
-    {
-        ctx.jsonWhole["search_path"] = ctx.searchPaths;
-    }
-    else
-    {
-        cout << "In search path `" << StrJoin( "`, `", ctx.searchPaths ) << "`:" << endl;
-    }
     // 输出结果
     for ( auto i = 0U; i < ctx.patterns.size(); ++i )
     {
         ConsoleAttrT<int> ca( FgColor(i), 0 );
         ca.modify();
         cout << ctx.patterns[i] << ":\n"
-            << "    files=" << ctx.results[i].files << endl
+            << "    files=" << ctx.results[i].files.size() << endl
             << "    origin_lines=" << ctx.results[i].originLines << ", origin_bytes=" << ctx.results[i].originBytes << endl
-            << "    lines=" << ctx.results[i].processedLines << ", bytes=" << ctx.results[i].processedBytes << endl;
+            << "    lines=" << ctx.results[i].lines << ", bytes=" << ctx.results[i].bytes << endl;
             ca.resume();
     }
 
@@ -396,16 +399,29 @@ int main( int argc, char const * argv[] )
     size_t totalOriginLines = 0, totalOriginBytes = 0;
     for ( auto & kv : ctx.results )
     {
-        totalFiles += kv.second.files;
-        totalProcessedLines += kv.second.processedLines;
-        totalProcessedBytes += kv.second.processedBytes;
+        totalFiles += kv.second.files.size();
+        totalProcessedLines += kv.second.lines;
+        totalProcessedBytes += kv.second.bytes;
         totalOriginLines += kv.second.originLines;
         totalOriginBytes += kv.second.originBytes;
     }
-    cout << "\nTotal:\n"
-        << "    files=" << totalFiles << endl
-        << "    origin_lines=" << totalOriginLines << ", origin_bytes=" << totalOriginBytes << endl
-        << "    lines=" << totalProcessedLines << ", bytes=" << totalProcessedBytes << endl;
+    if ( ctx.json )
+    {
+        Mixed & total = ctx.jsonWhole["total"].createCollection();
+
+        total["files"] = totalFiles;
+        total["origin_lines"] = totalOriginLines;
+        total["origin_bytes"] = totalOriginBytes;
+        total["lines"] = totalProcessedLines;
+        total["bytes"] = totalProcessedBytes;
+    }
+    else
+    {
+        cout << "\nTotal:\n"
+            << "    files=" << totalFiles << endl
+            << "    origin_lines=" << totalOriginLines << ", origin_bytes=" << totalOriginBytes << endl
+            << "    lines=" << totalProcessedLines << ", bytes=" << totalProcessedBytes << endl;
+    }
 
     if ( ctx.json )
     {
