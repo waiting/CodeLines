@@ -228,7 +228,7 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
     }
 
     // 记下统计结果
-    //ctx->results[patternIndex].files++;
+    ctx->results[patternIndex].files++;
     ctx->results[patternIndex].bytes += processedCodeText.length();
     ctx->results[patternIndex].lines += linesThisFile;
     ctx->results[patternIndex].originBytes += contents.length();
@@ -387,7 +387,7 @@ int main( int argc, char const * argv[] )
         ConsoleAttrT<int> ca( FgColor(i), 0 );
         ca.modify();
         cout << ctx.patterns[i] << ":\n"
-            << "    files=" << ctx.results[i].files.size() << endl
+            << "    files=" << ctx.results[i].files << endl
             << "    origin_lines=" << ctx.results[i].originLines << ", origin_bytes=" << ctx.results[i].originBytes << endl
             << "    lines=" << ctx.results[i].lines << ", bytes=" << ctx.results[i].bytes << endl;
             ca.resume();
@@ -399,7 +399,7 @@ int main( int argc, char const * argv[] )
     size_t totalOriginLines = 0, totalOriginBytes = 0;
     for ( auto & kv : ctx.results )
     {
-        totalFiles += kv.second.files.size();
+        totalFiles += kv.second.files;
         totalProcessedLines += kv.second.lines;
         totalProcessedBytes += kv.second.bytes;
         totalOriginLines += kv.second.originLines;

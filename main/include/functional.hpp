@@ -37,12 +37,14 @@ struct ProcessContext
     };
     struct Result
     {
-        std::vector<OneFileResult> files;
+        size_t files;
+        //std::vector<OneFileResult> files;
         size_t originBytes;
         size_t bytes;
         size_t originLines;
         size_t lines;
         Result() :
+            files(0),
             originBytes(0),
             bytes(0),
             originLines(0),
