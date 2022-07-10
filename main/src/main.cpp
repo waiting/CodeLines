@@ -359,7 +359,19 @@ int main( int argc, char const * argv[] )
 
     try
     {
-        if ( ctx.json ) ctx.jsonWhole["result"].createCollection();
+        if ( ctx.json )
+        {
+            Mixed & result = ctx.jsonWhole["result"].createCollection();
+            for ( auto i = 0U; i < ctx.patterns.size(); ++i )
+            {
+                Mixed & patResult = result[ ctx.patterns[i] ].createCollection();
+                patResult["files"].createArray();
+                patResult["origin_bytes"] = 0;
+                patResult["origin_lines"] = 0;
+                patResult["bytes"] = 0;
+                patResult["lines"] = 0;
+            }
+        }
 
         // 扫描文件
         DoScanCodeFiles( &ctx, "", ctx.searchPaths, [ &ctx ] ( String const & searchTopDir, auto i, String const & path, String const & f ) {
