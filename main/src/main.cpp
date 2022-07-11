@@ -396,13 +396,25 @@ int main( int argc, char const * argv[] )
     // 输出结果
     for ( auto i = 0U; i < ctx.patterns.size(); ++i )
     {
-        ConsoleAttrT<int> ca( FgColor(i), 0 );
-        ca.modify();
-        cout << ctx.patterns[i] << ":\n"
-            << "    files=" << ctx.results[i].files << endl
-            << "    origin_lines=" << ctx.results[i].originLines << ", origin_bytes=" << ctx.results[i].originBytes << endl
-            << "    lines=" << ctx.results[i].lines << ", bytes=" << ctx.results[i].bytes << endl;
+        if ( ctx.json )
+        {
+            Mixed & result = ctx.jsonWhole["result"];
+            Mixed & patResult = result[ ctx.patterns[i] ];
+            patResult["origin_bytes"] = ctx.results[i].originBytes;
+            patResult["origin_lines"] = ctx.results[i].originLines;
+            patResult["bytes"] = ctx.results[i].bytes;
+            patResult["lines"] = ctx.results[i].lines;
+        }
+        else
+        {
+            ConsoleAttrT<int> ca( FgColor(i), 0 );
+            ca.modify();
+            cout << ctx.patterns[i] << ":\n"
+                << "    files=" << ctx.results[i].files << endl
+                << "    origin_lines=" << ctx.results[i].originLines << ", origin_bytes=" << ctx.results[i].originBytes << endl
+                << "    lines=" << ctx.results[i].lines << ", bytes=" << ctx.results[i].bytes << endl;
             ca.resume();
+        }
     }
 
     // 总计
@@ -422,10 +434,10 @@ int main( int argc, char const * argv[] )
         Mixed & total = ctx.jsonWhole["total"].createCollection();
 
         total["files"] = totalFiles;
-        total["origin_lines"] = totalOriginLines;
         total["origin_bytes"] = totalOriginBytes;
-        total["lines"] = totalProcessedLines;
+        total["origin_lines"] = totalOriginLines;
         total["bytes"] = totalProcessedBytes;
+        total["lines"] = totalProcessedLines;
     }
     else
     {
