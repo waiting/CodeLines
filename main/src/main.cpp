@@ -199,15 +199,32 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
     if ( !ctx->silent )
     {
         // 输出文件大小和行数
-        ConsoleAttrT<int> ca( fg, 0 );
-        ca.modify();
-        cout << String( 79, '-' ) << endl;
-        cout << ctx->patterns[patternIndex] << ": " << CombinePath( path, fileName ) << endl;
-        cout << "orgin: bytes=" << contents.length() << ", lines=" << originCodes.size() << "  processed: bytes=" << processedCodeText.length() << ", lines=" << linesThisFile << endl;
-        cout << String( 79, '-' ) << endl;
-        ca.resume();
+        if ( ctx->json )
+        {
+            Mixed & result = ctx->jsonWhole["result"];
+            Mixed & patResult = result[ ctx->patterns[patternIndex] ];
+            Mixed & patResultFiles = patResult["files"];
+            Mixed oneFileResult;
+            oneFileResult.createCollection();
+            oneFileResult["path"] = CombinePath( path, fileName );
+            oneFileResult["orgin_bytes"] = contents.length();
+            oneFileResult["orgin_lines"] = originCodes.size();
+            oneFileResult["bytes"] = processedCodeText.length();
+            oneFileResult["lines"] = linesThisFile;
+            patResultFiles.add(oneFileResult);
+        }
+        else
+        {
+            ConsoleAttrT<int> ca( fg, 0 );
+            ca.modify();
+            cout << String( 79, '-' ) << endl;
+            cout << ctx->patterns[patternIndex] << ": " << CombinePath( path, fileName ) << endl;
+            cout << "orgin: bytes=" << contents.length() << ", lines=" << originCodes.size() << "  processed: bytes=" << processedCodeText.length() << ", lines=" << linesThisFile << endl;
+            cout << String( 79, '-' ) << endl;
+            ca.resume();
+        }
 
-        if ( ctx->verbose )
+        if ( ctx->verbose && !ctx->json )
         {
             // 输出问题行在原始代码中的行数
             size_t start = 0;
@@ -258,7 +275,10 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
         String path1 = RealPath(searchTopDir), path2 = RealPath(outputDir);
         if ( path1 == path2 )
         {
-            cout << "search_path: " << path1 << endl << "output_path: " << path2 << endl;
+            if ( !ctx->json )
+            {
+                cout << "search_path: " << path1 << endl << "output_path: " << path2 << endl;
+            }
             throw Error( 2, "In `:` output mode, the search path and output path are the same." );
         }
 
@@ -273,14 +293,16 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
         }
 
         // 输出文件
-        ConsoleAttrT<int> ca( bgAtrovirens|fgYellow, 0, true );
-        ca.modify();
-        cout << "Output" << ": " << NormalizePath( CombinePath( path, fileName ) ) << " => " << NormalizePath( CombinePath(outputDir,outputFile) );
-        ca.resume();
-        cout << endl;
-
-        MakeDirExists( outputDir );
-        FilePutContents( CombinePath(outputDir, outputFile), processedCodeText );
+        if ( !ctx->json )
+        {
+            ConsoleAttrT<int> ca( bgAtrovirens|fgYellow, 0, true );
+            ca.modify();
+            cout << "Output" << ": " << NormalizePath( CombinePath( path, fileName ) ) << " => " << NormalizePath( CombinePath(outputDir,outputFile) );
+            ca.resume();
+            cout << endl;
+        }
+        MakeDirExists(outputDir);
+        FilePutContents( CombinePath( outputDir, outputFile ), processedCodeText );
     }
     else if ( ( ( pos = ctx->outputPath.rfind( '/' ) ) != String::npos || ( pos = ctx->outputPath.rfind( '\\' ) ) != String::npos ) ) // 含有 '/' 或 '\\' 在指定目录输出
     {
@@ -318,19 +340,24 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
         String path1 = RealPath(path), path2 = RealPath(outputDir);
         if ( path1 == path2 )
         {
-            cout << "really_path: " << path1 << endl << "output_path: " << path2 << endl;
+            if ( !ctx->json )
+            {
+                cout << "really_path: " << path1 << endl << "output_path: " << path2 << endl;
+            }
             throw Error( 2, "In `/` output mode, the really path and output path are the same." );
         }
 
         // 输出文件
-        ConsoleAttrT<int> ca( bgAtrovirens|fgYellow, 0, true );
-        ca.modify();
-        cout << "Output" << ": " << NormalizePath( CombinePath( path, fileName ) ) << " => " << NormalizePath( CombinePath(outputDir,outputFile) );
-        ca.resume();
-        cout << endl;
-
-        MakeDirExists( outputDir );
-        FilePutContents( CombinePath(outputDir, outputFile), processedCodeText );
+        if ( !ctx->json )
+        {
+            ConsoleAttrT<int> ca( bgAtrovirens|fgYellow, 0, true );
+            ca.modify();
+            cout << "Output" << ": " << NormalizePath( CombinePath( path, fileName ) ) << " => " << NormalizePath( CombinePath(outputDir,outputFile) );
+            ca.resume();
+            cout << endl;
+        }
+        MakeDirExists(outputDir);
+        FilePutContents( CombinePath( outputDir, outputFile ), processedCodeText );
     }
 }
 
