@@ -196,6 +196,7 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
         }
     } );
 
+    Mixed * fileResult = nullptr;
     if ( !ctx->silent )
     {
         // 输出文件大小和行数
@@ -211,7 +212,8 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
             oneFileResult["orgin_lines"] = originCodes.size();
             oneFileResult["bytes"] = processedCodeText.length();
             oneFileResult["lines"] = linesThisFile;
-            patResultFiles.add(oneFileResult);
+            int i = patResultFiles.add(oneFileResult);
+            fileResult = &patResultFiles[i];
         }
         else
         {
@@ -279,6 +281,14 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
             {
                 cout << "search_path: " << path1 << endl << "output_path: " << path2 << endl;
             }
+            else
+            {
+                if ( fileResult )
+                {
+                    (*fileResult)["search_path"] = path1;
+                    (*fileResult)["output_path"] = path2;
+                }
+            }
             throw Error( 2, "In `:` output mode, the search path and output path are the same." );
         }
 
@@ -297,9 +307,16 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
         {
             ConsoleAttrT<int> ca( bgAtrovirens|fgYellow, 0, true );
             ca.modify();
-            cout << "Output" << ": " << NormalizePath( CombinePath( path, fileName ) ) << " => " << NormalizePath( CombinePath(outputDir,outputFile) );
+            cout << "Output: " << NormalizePath( CombinePath( path, fileName ) ) << " => " << NormalizePath( CombinePath( outputDir, outputFile ) );
             ca.resume();
             cout << endl;
+        }
+        else
+        {
+            if ( fileResult )
+            {
+                (*fileResult)["output_path"] = NormalizePath( CombinePath( outputDir, outputFile ) );
+            }
         }
         MakeDirExists(outputDir);
         FilePutContents( CombinePath( outputDir, outputFile ), processedCodeText );
@@ -344,6 +361,14 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
             {
                 cout << "really_path: " << path1 << endl << "output_path: " << path2 << endl;
             }
+            else
+            {
+                if ( fileResult )
+                {
+                    (*fileResult)["really_path"] = path1;
+                    (*fileResult)["output_path"] = path2;
+                }
+            }
             throw Error( 2, "In `/` output mode, the really path and output path are the same." );
         }
 
@@ -352,9 +377,16 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
         {
             ConsoleAttrT<int> ca( bgAtrovirens|fgYellow, 0, true );
             ca.modify();
-            cout << "Output" << ": " << NormalizePath( CombinePath( path, fileName ) ) << " => " << NormalizePath( CombinePath(outputDir,outputFile) );
+            cout << "Output" << ": " << NormalizePath( CombinePath( path, fileName ) ) << " => " << NormalizePath( CombinePath( outputDir, outputFile ) );
             ca.resume();
             cout << endl;
+        }
+        else
+        {
+            if ( fileResult )
+            {
+                (*fileResult)["output_path"] = NormalizePath( CombinePath( outputDir, outputFile ) );
+            }
         }
         MakeDirExists(outputDir);
         FilePutContents( CombinePath( outputDir, outputFile ), processedCodeText );
@@ -377,7 +409,11 @@ int main( int argc, char const * argv[] )
 
     if ( ctx.json )
     {
-        ctx.jsonWhole["search_path"] = ctx.searchPaths;
+        Mixed & searchPaths = ctx.jsonWhole["search_path"].createArray();
+        for ( auto & searchPath : ctx.searchPaths )
+        {
+            searchPaths.add( RealPath(searchPath) );
+        }
     }
     else
     {
@@ -459,7 +495,6 @@ int main( int argc, char const * argv[] )
     if ( ctx.json )
     {
         Mixed & total = ctx.jsonWhole["total"].createCollection();
-
         total["files"] = totalFiles;
         total["origin_bytes"] = totalOriginBytes;
         total["origin_lines"] = totalOriginLines;
