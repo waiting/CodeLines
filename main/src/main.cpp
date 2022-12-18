@@ -182,7 +182,7 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
 
     // 处理前的原始行数
     StringArray originCodes;
-    CalcLines( contents, [&originCodes] ( auto i, auto const & line ) {
+    CalcLines( contents, [&originCodes] ( int i, String const & line ) {
         originCodes.push_back(line);
     } );
 
@@ -403,7 +403,7 @@ int main( int argc, char const * argv[] )
     ctx.silent = cmdVars.hasFlag("--s");
     ctx.verbose = cmdVars.hasFlag("--v");
     ctx.json = cmdVars.hasFlag("--j");
-    ctx.outputPath = cmdVars.getParam( "-o", "" );
+    ctx.outputPath = cmdVars.getParam( "-o", "" ).toAnsi();
 
     if ( !AnalyzeParams( &ctx, cmdVars ) ) return 1;
 
@@ -437,7 +437,7 @@ int main( int argc, char const * argv[] )
         }
 
         // 扫描文件
-        DoScanCodeFiles( &ctx, "", ctx.searchPaths, [ &ctx ] ( String const & searchTopDir, auto i, String const & path, String const & f ) {
+        DoScanCodeFiles( &ctx, "", ctx.searchPaths, [ &ctx ] ( String const & searchTopDir, int i, String const & path, String const & f ) {
             DoProcessCodeFile( &ctx, searchTopDir, i, path, f, FileGetContents( CombinePath( path, f ) ) );
         } );
     }
