@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
+#include <math.h>
 #include <iomanip>
 
 #if defined(OS_WIN) // IS_WINDOWS
