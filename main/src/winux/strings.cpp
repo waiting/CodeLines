@@ -801,8 +801,8 @@ inline static XString<_ChTy> Impl_StripSlashes( XString<_ChTy> const & str, XStr
     using MyUT = typename UT< sizeof(_ChTy) >::type;
 
     XString<_ChTy> result;
-    int octMaxLen = (int)ceil( logl((MyUT)(-1)) / logl(8) );
-    int hexMaxLen = (int)ceil( logl((MyUT)(-1)) / logl(16) );
+    int octMaxLen = (int)ceil( log((MyUT)(-1)) / log(8) );
+    int hexMaxLen = (int)ceil( log((MyUT)(-1)) / log(16) );
 
     for ( MyConstIterator it = str.begin(); it != str.end(); )
     {
