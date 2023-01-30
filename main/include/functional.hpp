@@ -90,9 +90,8 @@ struct ProcessContext
     Mixed jsonWhole; // JSON式全部结果
     String outputPath; // 输出路径
 
-    ProcessContext() : m(false), l(false), re(false), silent(false), verbose(false), json(false)
+    ProcessContext() : m(false), l(false), re(false), silent(false), verbose(false), json(false), jsonWhole($c{})
     {
-        this->jsonWhole.createCollection();
     }
 };
 

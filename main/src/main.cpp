@@ -92,10 +92,13 @@ bool AnalyzeParams( ProcessContext * ctx, CommandLineVars const & cmdVars )
     }
     try
     {
-        // 构建正则表达式对象
-        for ( auto && pa : ctx->patterns )
+        if ( ctx->re )
         {
-            ctx->rePatterns.emplace_back( ( ctx->re ? pa : "\\." + pa + "$" ) );
+            // 构建正则表达式对象
+            for ( auto && pa : ctx->patterns )
+            {
+                ctx->rePatterns.emplace_back( ( ctx->re ? pa : "\\." + pa + "$" ) );
+            }
         }
     }
     catch ( std::regex_error const & e )
@@ -146,14 +149,27 @@ int DoScanCodeFiles(
 
         StringArray files, subDirs;
         FolderData( searchPath, &files, &subDirs );
-        for ( vector<regex>::size_type i = 0; i < ctx->rePatterns.size(); i++ )
+        for ( size_t i = 0; i < ctx->patterns.size(); i++ )
         {
             for ( auto const & fileName : files )
             {
-                if ( regex_search( fileName, ctx->rePatterns[i] ) )
+                if ( ctx->re )
                 {
-                    func( searchTopDir, (int)i, searchPath, fileName );
-                    filesCount++;
+                    if ( regex_search( fileName, ctx->rePatterns[i] ) )
+                    {
+                        func( searchTopDir, (int)i, searchPath, fileName );
+                        filesCount++;
+                    }
+                }
+                else
+                {
+                    String ext;
+                    FileTitle( fileName, &ext );
+                    if ( ctx->patterns[i] == ext )
+                    {
+                        func( searchTopDir, (int)i, searchPath, fileName );
+                        filesCount++;
+                    }
                 }
             }
         }
@@ -212,7 +228,7 @@ void DoProcessCodeFile( ProcessContext * ctx, String const & searchTopDir, int p
             oneFileResult["orgin_lines"] = originCodes.size();
             oneFileResult["bytes"] = processedCodeText.length();
             oneFileResult["lines"] = linesThisFile;
-            int i = patResultFiles.add(oneFileResult);
+            size_t i = patResultFiles.add(oneFileResult);
             fileResult = &patResultFiles[i];
         }
         else
