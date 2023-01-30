@@ -75,7 +75,7 @@ static void __ParseCommandLineString( winux::String const & cmd, winux::String::
     }
 }
 
-WINUX_FUNC_IMPL(int) CommandLineToArgv( winux::String const & cmd, winux::StringArray * argv )
+WINUX_FUNC_IMPL(size_t) CommandLineToArgv( winux::String const & cmd, winux::StringArray * argv )
 {
     winux::String::size_type i;
     i = 0;
@@ -161,7 +161,7 @@ WINUX_FUNC_IMPL(int) CommandLineToArgv( winux::String const & cmd, winux::String
         if ( !arg.empty() ) argv->push_back(arg);
     }
 
-    return (int)argv->size();
+    return argv->size();
 }
 
 #if defined(OS_WIN)
@@ -584,8 +584,8 @@ void CommandLineVars::__MixedAppendToStringArray( Mixed const & mx, StringArray 
 {
     if ( mx.isArray() )
     {
-        int n = mx.getCount();
-        for ( int i = 0; i < n; i++ )
+        size_t n = mx.getCount();
+        for ( size_t i = 0; i < n; i++ )
         {
             arr->push_back(mx[i]);
         }
@@ -596,8 +596,8 @@ void CommandLineVars::__MixedAppendToStringArray( Mixed const & mx, StringArray 
         if ( !s.empty() )
         {
             StringArray tmpArr;
-            int n = StrSplit( s, ",", &tmpArr );
-            for ( int i = 0; i < n; i++ )
+            size_t n = StrSplit( s, ",", &tmpArr );
+            for ( size_t i = 0; i < n; i++ )
             {
                 if ( !tmpArr[i].empty() )
                 {
@@ -632,7 +632,7 @@ CommandLineVars::CommandLineVars( int argc, char const ** argv, Mixed const & de
         bool isJudged = false;//是否已经判断属于何种变量
 
         // Params
-        for ( int iDesiredParam = 0; !isJudged && iDesiredParam < (int)_desiredParams.size(); ++iDesiredParam )
+        for ( size_t iDesiredParam = 0; !isJudged && iDesiredParam < _desiredParams.size(); ++iDesiredParam )
         {
             if ( args == _desiredParams[iDesiredParam] )
             {
@@ -653,7 +653,7 @@ CommandLineVars::CommandLineVars( int argc, char const ** argv, Mixed const & de
         }
 
         // Options
-        for ( int iDesiredOption = 0; !isJudged && iDesiredOption < (int)_desiredOptions.size(); ++iDesiredOption )
+        for ( size_t iDesiredOption = 0; !isJudged && iDesiredOption < _desiredOptions.size(); ++iDesiredOption )
         {
             if ( args.length() < _desiredOptions[iDesiredOption].length() )
                 continue;
@@ -682,7 +682,7 @@ CommandLineVars::CommandLineVars( int argc, char const ** argv, Mixed const & de
         }
 
         // Flags
-        for ( int iDesiredFlag = 0; !isJudged && iDesiredFlag < (int)_desiredFlags.size(); ++iDesiredFlag )
+        for ( size_t iDesiredFlag = 0; !isJudged && iDesiredFlag < _desiredFlags.size(); ++iDesiredFlag )
         {
             if ( args == _desiredFlags[iDesiredFlag] )
             {

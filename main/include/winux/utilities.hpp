@@ -76,11 +76,15 @@ namespace winux
 // 禁止类的对象赋值/拷贝构造
 // DISABLE_OBJECT_COPY
 #define DISABLE_OBJECT_COPY( clsname ) private:\
-clsname & operator = ( clsname const & ) = delete;\
-clsname( clsname const & ) = delete;
+clsname( clsname const & ) = delete;\
+clsname & operator = ( clsname const & ) = delete;
 
 // C语言缓冲区转换为AnsiString二进制串
 #define CBufferToAnsiString( buf, size ) winux::AnsiString( (char const *)(buf), (size_t)(size) )
+// C语言缓冲区转换为Buffer对象
+#define CBufferToBuffer( buf, size ) winux::Buffer( (void *)(buf), (size_t)(size), false )
+// C语言缓冲区转换为Buffer对象（PEEK模式）
+#define CBufferToBufferPeek( buf, size ) winux::Buffer( (void *)(buf), (size_t)(size), true )
 
 // 如果指针非NULL
 // IF_PTR
@@ -157,7 +161,7 @@ protected: \
 #define GCC_VERSION_GREAT_THAN(Major,Minor,Patchlevel) \
 ( __GNUC__ > Major || ( __GNUC__ == Major && ( __GNUC_MINOR__ > Minor || ( __GNUC_MINOR__ == Minor && __GNUC_PATCHLEVEL__ > Patchlevel ) ) ) )
 
-// 基本类型 -----------------------------------------------------------------------------------
+// WINUX基本类型 -----------------------------------------------------------------------------------
 typedef int int32;
 typedef unsigned int uint, uint32;
 typedef unsigned long ulong;
@@ -168,6 +172,9 @@ typedef unsigned char uint8;
 
 typedef char16_t char16;
 typedef char32_t char32;
+
+typedef intptr_t offset_t, ssize_t;
+typedef size_t usize_t;
 
 #if defined(CL_VC)
 typedef wchar_t wchar;
@@ -224,7 +231,33 @@ typedef std::pair<String, Mixed> StringMixedPair;
 //typedef std::map<Mixed, Mixed> MixedMixedMap;
 //typedef std::pair<Mixed, Mixed> MixedMixedPair;
 
+// WINUX常用常量 ---------------------------------------------------------------------------
+/** \brief 非位置，值为-1。 */
+static constexpr size_t const npos = static_cast<size_t>(-1);
+
 // 模板元编程支持 ---------------------------------------------------------------------------
+/** \brief 反转字节序 */
+template < typename _Ty >
+inline static constexpr _Ty InvertByteOrder( _Ty v )
+{
+    _Ty v2 = 0;
+    for ( int i = 0; i < sizeof(_Ty); ++i ) v2 |= ( ( v >> i * 8 ) & 0xFFU ) << ( sizeof(_Ty) - 1 - i ) * 8;
+    return v2;
+}
+
+/** \brief 判断编译环境是否为小端序 */
+inline static bool IsLittleEndian()
+{
+    constexpr winux::uint16 judgeHostOrder = 0x0102;
+    return *(winux::byte*)&judgeHostOrder == 0x02;
+}
+
+/** \brief 判断编译环境是否为大端序 */
+inline static bool IsBigEndian()
+{
+    constexpr winux::uint16 judgeHostOrder = 0x0102;
+    return *(winux::byte*)&judgeHostOrder == 0x01;
+}
 
 /** \brief 检测map中是否有该键的值 */
 template < typename _MAP, typename _KEY >
@@ -363,6 +396,7 @@ MapAssigner< _KTy, _VTy > Assign( std::map< _KTy, _VTy > * m )
 {
     return MapAssigner< _KTy, _VTy >(m);
 }
+
 /** \brief 给容器赋值 */
 template < typename _Ty >
 ArrayAssigner<_Ty> Assign( std::vector<_Ty> * a )
@@ -432,6 +466,11 @@ public:
         _data = new _TargetCls( std::forward<_ArgType>(arg)... );
     }
 
+    _TargetCls * get() const
+    {
+        return _data;
+    }
+
     _TargetCls * operator -> ()
     {
         return _data;
@@ -478,22 +517,27 @@ WINUX_FUNC_DECL(int) Random( int n1, int n2 );
 // -------------------------------------------------------------------------------
 class GrowBuffer;
 
-/** \brief 缓冲区,表示内存中一块2进制数据(利用malloc/realloc进行内存分配) */
+/** \brief 缓冲区，表示内存中一块二进制数据(利用malloc/realloc进行内存分配) */
 class WINUX_DLL Buffer
 {
 public:
     /** \brief 默认构造函数 */
     Buffer();
+
     /** \brief 构造函数1 从一个缓冲区创建Buffer,可以指定是否为窥视模式
      *
      *  处于窥视模式时将不负责管理资源的释放 */
-    Buffer( void * buf, uint size, bool isPeek = false );
+    Buffer( void const * buf, size_t size, bool isPeek = false );
+
     /** \brief 构造函数2 从一个AnsiString创建Buffer,可以指定是否为窥视模式
      *
      *  处于窥视模式时将不负责管理资源的释放 */
     Buffer( AnsiString const & data, bool isPeek = false );
+
     virtual ~Buffer();
+
     Buffer( Buffer const & other );
+
     Buffer & operator = ( Buffer const & other );
 
 #ifndef MOVE_SEMANTICS_DISABLED
@@ -508,21 +552,24 @@ public:
 #endif
 
     /** \brief 设置缓冲区,当isPeek为false时拷贝数据缓冲区 */
-    void setBuf( void * buf, uint size, uint capacity, bool isPeek );
+    void setBuf( void const * buf, size_t size, size_t capacity, bool isPeek );
 
     /** \brief 设置缓冲区,当isPeek为false时拷贝数据缓冲区 */
-    void setBuf( void * buf, uint size, bool isPeek ) { this->setBuf( buf, size, size, isPeek ); }
+    void setBuf( void const * buf, size_t size, bool isPeek ) { this->setBuf( buf, size, size, isPeek ); }
 
     /** \brief 分配容量大小,当setDataSize为true时设置数据长度 */
-    void alloc( uint capacity, bool setDataSize = true );
+    void alloc( size_t capacity, bool setDataSize = true );
 
     /** \brief 重新调整容量的大小,保留数据内容
      *
      *  如果新的容量小于数据大小,多余的数据被丢弃 */
-    void realloc( uint newCapacity );
+    void realloc( size_t newCapacity );
 
     /** \brief 把窥探模式变为拷贝模式，如果copyCapacity为true时连容量也一起拷贝，否则只拷贝数据。 */
     bool peekCopy( bool copyCapacity = false );
+
+    /** \brief 使Buffer对象不再管理内存资源 */
+    void * detachBuf( size_t * size = nullptr );
 
     /** \brief 释放缓冲区 */
     void free();
@@ -530,20 +577,45 @@ public:
     /** \brief 暴露缓冲区指针 */
     void * getBuf() const { return _buf; }
 
+    /** \brief 暴露缓冲区指针 */
     template < typename _Ty >
     _Ty * getBuf() const { return reinterpret_cast<_Ty *>(_buf); }
 
-    winux::byte & operator [] ( int i ) { return reinterpret_cast<winux::byte *>(_buf)[i]; }
-    winux::byte const & operator [] ( int i ) const { return reinterpret_cast<winux::byte const *>(_buf)[i]; }
+    /** \brief 暴露缓冲区指针 */
+    void * get() const { return _buf; }
+
+    /** \brief 暴露缓冲区指针 */
+    template < typename _Ty >
+    _Ty * get() const { return reinterpret_cast<_Ty *>(_buf); }
+
+    /** \brief 获取指定索引的字节 */
+    winux::byte & operator [] ( size_t i ) { return reinterpret_cast<winux::byte *>(_buf)[i]; }
+    /** \brief 获取指定索引的字节 */
+    winux::byte const & operator [] ( size_t i ) const { return reinterpret_cast<winux::byte const *>(_buf)[i]; }
+    /** \brief 获取指定索引的字节 */
+    winux::byte & get( size_t i ) { return reinterpret_cast<winux::byte *>(_buf)[i]; }
+    /** \brief 获取指定索引的字节 */
+    winux::byte const & get( size_t i ) const { return reinterpret_cast<winux::byte const *>(_buf)[i]; }
+
+    winux::byte * begin() { return reinterpret_cast<winux::byte *>(_buf); }
+    winux::byte * end() { return reinterpret_cast<winux::byte *>(_buf) + _dataSize; }
+    winux::byte const * begin() const { return reinterpret_cast<winux::byte *>(_buf); }
+    winux::byte const * end() const { return reinterpret_cast<winux::byte *>(_buf) + _dataSize; }
 
     /** \brief 获取数据大小 */
-    uint getSize() const { return _dataSize; }
+    size_t getSize() const { return _dataSize; }
+
+    /** \brief 获取数据大小 */
+    size_t size() const { return _dataSize; }
 
     /** \brief 设置数据大小，不能超过容量大小（不建议外部调用） */
-    void _setSize( uint dataSize ) { _dataSize = ( dataSize > _capacity ? _capacity : dataSize ); }
+    void _setSize( size_t dataSize ) { _dataSize = ( dataSize > _capacity ? _capacity : dataSize ); }
 
     /** \brief 获取容量大小 */
-    uint getCapacity() const { return _capacity; }
+    size_t getCapacity() const { return _capacity; }
+
+    /** \brief 获取容量大小 */
+    size_t capacity() const { return _capacity; }
 
     /** \brief 判断是否为一个有效的Buffer */
     operator bool() const { return _buf != NULL; }
@@ -560,15 +632,16 @@ public:
     /** \brief 转换到UnicodeString */
     UnicodeString toUnicode() const { return this->toString<UnicodeString::value_type>(); }
 
-protected:
-    static void * _Alloc( uint size );
-    static void * _Realloc( void * p, uint newSize );
+public:
+    static void * _Alloc( size_t size );
+    static void * _Realloc( void * p, size_t newSize );
     static void _Free( void * p );
 
-    void * _buf;
-    uint _dataSize; // 数据的大小
-    uint _capacity; // 容量
-    bool _isPeek; // 是否为窥视模式
+protected:
+    void * _buf; ///< 缓冲区
+    size_t _dataSize; ///< 数据的大小
+    size_t _capacity; ///< 容量
+    bool _isPeek; ///< 是否为窥视模式
 
     friend class GrowBuffer;
 };
@@ -578,7 +651,7 @@ class WINUX_DLL GrowBuffer : public Buffer
 {
 public:
     /** \brief 构造函数，初始化缓冲区的大小 */
-    explicit GrowBuffer( uint capacity = 0 );
+    explicit GrowBuffer( size_t capacity = 0 );
     GrowBuffer( GrowBuffer const & other );
     GrowBuffer & operator = ( GrowBuffer const & other );
     explicit GrowBuffer( Buffer const & other );
@@ -595,17 +668,35 @@ public:
     GrowBuffer & operator = ( Buffer && other );
 #endif
 
-    /** \brief 添加数据 */
-    void append( void const * data, uint size );
+    /** \brief 添加数据：C语言缓冲区 */
+    void append( void const * data, size_t size );
 
-    /** \brief 添加数据 */
-    void append( AnsiString const & data ) { this->append( data.c_str(), (uint)data.size() ); }
+    /** \brief 添加数据：AnsiString对象 */
+    void append( AnsiString const & data ) { this->append( data.c_str(), data.size() ); }
 
-    /** \brief 添加数据 */
+    /** \brief 添加数据：Buffer对象 */
     void append( Buffer const & data ) { this->append( data.getBuf(), data.getSize() ); }
 
+    /** \brief 添加数据：POD类型变量 */
+    template < typename _PodType, size_t _Size = sizeof(_PodType) >
+    void append( _PodType const & data ) { this->append( &data, _Size ); }
+
+    /** \brief 添加数据：POD类型数组 */
+    template < typename _PodType, size_t _Count >
+    void append( _PodType const (&data)[_Count] ) { this->append( &data, _Count * sizeof(data[0]) ); }
+
+    /** \brief 添加数据：POD类型initializer_list */
+    template < typename _PodType >
+    void append( std::initializer_list<_PodType> list )
+    {
+        for ( auto const & e : list )
+        {
+            this->append< _PodType, sizeof(e) >(e);
+        }
+    }
+
     /** \brief 擦除数据，自动紧缩 */
-    void erase( uint start, uint count = (uint)-1 );
+    void erase( size_t start, size_t count = (size_t)-1 );
 
 protected:
     friend class Buffer;
@@ -618,17 +709,35 @@ class WINUX_DLL MixedError : public Error
 public:
     enum
     {
-        meNoError,         ///< 没有错误
-        meIsNull,          ///< 值是Null因此无法操作
-        meCantConverted,   ///< 不能转换到某种类型
-        meUnexpectedType,  ///< 意料外的类型,该类型不能执行这个操作
-        meOutOfArrayRange, ///< 数组越界
+        meNoError,         //!< 没有错误
+        meIsNull,          //!< 值是Null因此无法操作
+        meCantConverted,   //!< 不能转换到某种类型
+        meUnexpectedType,  //!< 意料外的类型,该类型不能执行这个操作
+        meOutOfArrayRange, //!< 数组越界
     };
 
     MixedError( int errType, AnsiString const & errStr ) throw() : Error( errType, errStr ) { }
 };
 
-/** \brief 混合体,能表示多种类型的值 */
+/** \brief Mixed构造数组辅助类 */
+struct $a
+{
+    std::initializer_list<Mixed> _list;
+    $a( std::initializer_list<Mixed> list ) : _list( std::move(list) )
+    {
+    }
+};
+
+/** \brief Mixed构造集合辅助类 */
+struct $c
+{
+    std::initializer_list< std::pair< Mixed, Mixed > > _list;
+    $c( std::initializer_list< std::pair< Mixed, Mixed > > list ) : _list( std::move(list) )
+    {
+    }
+};
+
+/** \brief 混合体，能表示多种类型的值 */
 class WINUX_DLL Mixed
 {
 public:
@@ -665,7 +774,7 @@ public:
     typedef std::map< Mixed, Mixed, MixedLess > MixedMixedMap;
     typedef MixedMixedMap::value_type  MixedMixedPair;
 
-    MixedType _type;
+    MixedType _type; //!< 当前类型
 
     union
     {
@@ -702,10 +811,10 @@ public:
 
 public:
     Mixed();
-    Mixed( AnsiString const & str ); ///< 多字节字符串
-    Mixed( UnicodeString const & str ); ///< Unicode字符串
-    Mixed( char const * str, int len = -1 ); ///< 多字节字符串
-    Mixed( wchar const * str, int len = -1 ); ///< Unicode字符串
+    Mixed( AnsiString const & str );                //!< 多字节字符串
+    Mixed( UnicodeString const & str );             //!< Unicode字符串
+    Mixed( char const * str, size_t len = npos );   //!< 多字节字符串
+    Mixed( wchar const * str, size_t len = npos );  //!< Unicode字符串
 
     Mixed( bool boolVal );
     Mixed( byte btVal );
@@ -721,39 +830,46 @@ public:
     Mixed( double dblVal );
 
     Mixed( Buffer const & buf );
-    Mixed( void * binaryData, uint size, bool isPeek = false );
+    Mixed( void const * binaryData, size_t size, bool isPeek = false );
 
     // Array构造函数 -----------------------------------------------------------------------
     /** \brief 数组构造函数 */
-    Mixed( Mixed * arr, uint count );
+    Mixed( Mixed * arr, size_t count );
 
+    /** \brief 数组构造函数 */
     template < typename _Ty >
     Mixed( std::vector<_Ty> const & arr )
     {
         _zeroInit();
         this->_type = MT_ARRAY;
         this->_pArr = new MixedArray( arr.size() );
-        uint i;
+        size_t i;
         for ( i = 0; i < arr.size(); ++i )
         {
             this->_pArr->at(i) = arr[i];
         }
     }
 
-#if defined(__GNUC__) || _MSC_VER > 1200
-    template < typename _Ty, uint n >
-    Mixed( _Ty (&arr)[n] )
+    /** \brief 数组构造函数 */
+    template < typename _Ty, size_t _N >
+    Mixed( _Ty (&arr)[_N] )
     {
         _zeroInit();
         this->_type = MT_ARRAY;
-        this->_pArr = new MixedArray(n);
-        uint i;
-        for ( i = 0; i < n; ++i )
+        this->_pArr = new MixedArray(_N);
+        size_t i;
+        for ( i = 0; i < _N; ++i )
         {
             this->_pArr->at(i) = arr[i];
         }
     }
-#endif
+
+    /** \brief 数组构造函数 */
+    Mixed( std::initializer_list<Mixed> list );
+
+    /** \brief 数组构造函数 */
+    Mixed( $a arr );
+
     // Collection构造函数 ------------------------------------------------------------------
     /** \brief Collection构造函数 */
     template < typename _KTy, typename _VTy, typename _Pr, typename _Alloc >
@@ -763,21 +879,24 @@ public:
         this->assign< _KTy, _VTy, _Pr, _Alloc >(m);
     }
 
-#if defined(__GNUC__) || _MSC_VER > 1200
-    template < typename _KTy, typename _VTy, uint count >
-    Mixed( std::pair< _KTy, _VTy > (&pairs)[count] )
+    /** \brief Collection构造函数 */
+    template < typename _KTy, typename _VTy, size_t _Count >
+    Mixed( std::pair< _KTy, _VTy > (&pairs)[_Count] )
     {
         _zeroInit();
-        this->assign< _KTy, _VTy, count >(pairs);
+        this->assign< _KTy, _VTy, _Count >(pairs);
     }
 
-    template < typename _KTy, typename _VTy, uint count >
-    Mixed( _KTy (&keys)[count], _VTy (&vals)[count] )
+    /** \brief Collection构造函数 */
+    template < typename _KTy, typename _VTy, size_t _Count >
+    Mixed( _KTy (&keys)[_Count], _VTy (&vals)[_Count] )
     {
         _zeroInit();
-        this->assign< _KTy, _VTy, count >( keys, vals );
+        this->assign< _KTy, _VTy, _Count >( keys, vals );
     }
-#endif
+
+    /** \brief Collection构造函数 */
+    Mixed( $c coll );
 
     /** \brief 析构函数 */
     ~Mixed();
@@ -871,57 +990,65 @@ public:
     /** \brief 创建一个Unicode字符串,并设置type为MT_UNICODE */
     Mixed & createUnicode();
     /** \brief 创建一个数组,自动把先前的数据清空,并设置type为MT_ARRAY */
-    Mixed & createArray( uint count = 0 );
+    Mixed & createArray( size_t count = 0 );
     /** \brief 创建一个集合,自动把先前的数据清空,并设置type为MT_COLLECTION */
     Mixed & createCollection();
     /** \brief 创建一个缓冲区,自动把先前的数据清空,并设置type为MT_BINARY */
-    Mixed & createBuffer( uint size = 0 );
+    Mixed & createBuffer( size_t size = 0 );
 
     // Array/Collection有关的操作 ----------------------------------------------------------
 
-    /** \brief 取得数组全部元素，必须是MT_ARRAY/MT_COLLECTION类型 */
+    /** \brief 取得数组全部元素，返回元素个数
+     *
+     *  必须是MT_ARRAY/MT_COLLECTION类型 */
     template < typename _Ty >
-    int getArray( std::vector<_Ty> * arr ) const
+    size_t getArray( std::vector<_Ty> * arr ) const
     {
         if ( !this->isArray() && !this->isCollection() ) throw MixedError( MixedError::meUnexpectedType, TypeString(this->_type) + " can't support getArray()" );
         MixedArray::const_iterator it;
         for ( it = this->_pArr->begin(); it != this->_pArr->end(); ++it )
             arr->push_back(*it);
-        return (int)arr->size();
+        return arr->size();
     }
 
-    /** \brief 获取全部键名，必须是MT_COLLECTION类型 */
+    /** \brief 获取全部键名，返回键名个数
+     *
+     *  必须是MT_COLLECTION类型 */
     template < typename _KTy >
-    int getKeys( std::vector<_KTy> * keys ) const
+    size_t getKeys( std::vector<_KTy> * keys ) const
     {
         if ( !this->isCollection() ) throw MixedError( MixedError::meUnexpectedType, TypeString(this->_type) + " can't support getKeys()" );
         MixedArray::const_iterator it;
         for ( it = this->_pArr->begin(); it != this->_pArr->end(); ++it )
             keys->push_back(*it);
-        return (int)keys->size();
+        return keys->size();
     }
 
-    /** \brief 获取映射表，必须是MT_COLLECTION类型 */
+    /** \brief 获取映射表，返回键值对个数
+     *
+     *  必须是MT_COLLECTION类型 */
     template < typename _KTy, typename _VTy >
-    int getMap( std::map< _KTy, _VTy > * m ) const
+    size_t getMap( std::map< _KTy, _VTy > * m ) const
     {
         if ( !this->isCollection() ) throw MixedError( MixedError::meUnexpectedType, TypeString(this->_type) + " can't support getMap()" );
         MixedMixedMap::const_iterator it;
         for ( it = this->_pMap->begin(); it != this->_pMap->end(); ++it )
             (*m)[(_KTy)it->first] = (_VTy)it->second;
-        return (int)m->size();
+        return m->size();
     }
 
-    /** \brief 判断容器是否为空 */
+    /** \brief 判断容器是否为空
+     *
+     *  当Mixed是Array/Collection类型时，判断元素是否为空。其他类型时都会返回空。 */
     bool isEmpty() const { return this->getCount() == 0; }
 
     /** \brief 获取Array/Collection元素个数
      *
      *  即使Mixed不是Array/Collection类型也不会报错，此时会返回0。 */
-    int getCount() const
+    size_t getCount() const
     {
         if ( ( this->isArray() || this->isCollection() ) && this->_pArr != NULL )
-            return (int)this->_pArr->size();
+            return this->_pArr->size();
         return 0;
     }
 
@@ -944,9 +1071,9 @@ public:
     Mixed const & get( Mixed const & k, Mixed const & defval = Mixed() ) const;
 
     /** \brief Collection获取'键值对'索引操作 */
-    MixedMixedMap::value_type & getPair( int i );
+    MixedMixedMap::value_type & getPair( size_t i );
     /** \brief Collection获取'键值对'索引操作 */
-    MixedMixedMap::value_type const & getPair( int i ) const;
+    MixedMixedMap::value_type const & getPair( size_t i ) const;
 
     class CollectionAssigner
     {
@@ -1007,10 +1134,10 @@ public:
     }
 
     /** \brief 往数组里加一个元素,返回索引值,非Array类型调用此函数会抛异常 */
-    int add( Mixed const & v );
+    size_t add( Mixed const & v );
 
     /** \brief 往数组里加一个唯一元素,返回索引值,非Array类型调用此函数会抛异常 */
-    int addUnique( Mixed const & v );
+    size_t addUnique( Mixed const & v );
 
     /** \brief 删除一个元素,操作类型可以是Array或Collection,k分别代表索引或键名 */
     void del( Mixed const & k );
@@ -1032,20 +1159,26 @@ public:
 
     // Buffer有关操作 --------------------------------------------------------------------------
     /** \brief 分配一块内存,自动释放先前数据,并设置type为MT_BINARY */
-    void alloc( uint size );
+    void alloc( size_t size, bool setDataSize = true );
 
-    /** \brief 把窥探模式下的MT_BINARY类型变为拷贝模式，如果copyCapacity为true时连容量也一起拷贝，否则只拷贝数据。 */
+    /** \brief 把窥探模式下的MT_BINARY类型变为拷贝模式，如果copyCapacity为true时连容量也一起拷贝，否则只拷贝数据。
+     *
+     *  即使Mixed不是MT_BINARY类型也不会出错，会直接返回false */
     bool peekCopy( bool copyCapacity = false );
 
-    /** \brief 取得缓冲区大小 */
-    int getSize() const;
+    /** \brief 取得缓冲区大小
+     *
+     *  即使Mixed不是MT_BINARY类型也不会出错，会直接返回0 */
+    size_t getSize() const;
 
-    /** \brief 暴露缓冲区指针 */
+    /** \brief 暴露缓冲区指针
+     *
+     *  即使Mixed不是MT_BINARY类型也不会出错，会直接返回NULL */
     void * getBuf() const;
 
     // 赋值操作 -------------------------------------------------------------------------------
-    void assign( char const * str, int len = -1 );
-    void assign( wchar const * str, int len = -1 );
+    void assign( char const * str, size_t len = npos );
+    void assign( wchar const * str, size_t len = npos );
     void assign( bool boolVal );
     void assign( byte btVal );
     void assign( short shVal );
@@ -1061,37 +1194,43 @@ public:
 
     void assign( Buffer const & buf );
     /** \brief 二进制数据赋值 */
-    void assign( void * binaryData, uint size, bool isPeek = false );
+    void assign( void const * binaryData, size_t size, bool isPeek = false );
     /** \brief 数组赋值 */
-    void assign( Mixed * arr, uint count );
+    void assign( Mixed * arr, size_t count );
 
+    /** \brief 用vector给Array赋值 */
     template < typename _Ty >
     void assign( std::vector<_Ty> const & arr )
     {
         this->free();
         this->_type = MT_ARRAY;
         this->_pArr = new MixedArray( arr.size() );
-        uint i;
-        for ( i = 0; i < (uint)arr.size(); ++i )
+        size_t i;
+        for ( i = 0; i < arr.size(); ++i )
         {
             this->_pArr->at(i) = arr[i];
         }
     }
 
-#if defined(__GNUC__) || _MSC_VER > 1200
-    template < typename _Ty, uint n >
-    void assign( _Ty (&arr)[n] )
+    /** \brief 用C数组给Array赋值 */
+    template < typename _Ty, size_t _N >
+    void assign( _Ty (&arr)[_N] )
     {
         this->free();
         this->_type = MT_ARRAY;
-        this->_pArr = new MixedArray(n);
-        uint i;
-        for ( i = 0; i < n; ++i )
+        this->_pArr = new MixedArray(_N);
+        size_t i;
+        for ( i = 0; i < _N; ++i )
         {
             this->_pArr->at(i) = arr[i];
         }
     }
-#endif
+
+    /** \brief 用initializer_list给Array赋值 */
+    void assign( std::initializer_list<Mixed> list );
+
+    /** \brief 用Mixed::Arr给Array赋值 */
+    void assign( $a arr );
 
     /** \brief 用map给Collection赋值 */
     template < typename _KTy, typename _VTy, typename _Pr, typename _Alloc >
@@ -1107,20 +1246,18 @@ public:
             this->_pArr->push_back(it->first);
             (*this->_pMap)[it->first] = it->second;
         }
-        //std::sort( this->_pArr->begin(), this->_pArr->end() );
     }
 
-#if defined(__GNUC__) || _MSC_VER > 1200
     /** \brief 用pairs给Collection赋值 */
-    template < typename _KTy, typename _VTy, uint count >
-    void assign( std::pair< _KTy, _VTy > (&pairs)[count] )
+    template < typename _KTy, typename _VTy, size_t _Count >
+    void assign( std::pair< _KTy, _VTy > (&pairs)[_Count] )
     {
         this->free();
         this->_type = MT_COLLECTION;
         this->_pArr = new MixedArray(); // 存放keys
         this->_pMap = new MixedMixedMap();
-        uint i;
-        for ( i = 0; i < count; ++i )
+        size_t i;
+        for ( i = 0; i < _Count; ++i )
         {
             this->_addUniqueKey(pairs[i].first);
             (*this->_pMap)[pairs[i].first] = pairs[i].second;
@@ -1128,21 +1265,24 @@ public:
     }
 
     /** \brief 用数组给Collection赋值 */
-    template < typename _KTy, typename _VTy, uint count >
-    void assign( _KTy (&keys)[count], _VTy (&vals)[count] )
+    template < typename _KTy, typename _VTy, size_t _Count >
+    void assign( _KTy (&keys)[_Count], _VTy (&vals)[_Count] )
     {
         this->free();
         this->_type = MT_COLLECTION;
         this->_pArr = new MixedArray(); // 存放keys
         this->_pMap = new MixedMixedMap();
-        uint i;
-        for ( i = 0; i < count; ++i )
+        size_t i;
+        for ( i = 0; i < _Count; ++i )
         {
             this->_addUniqueKey(keys[i]);
             (*this->_pMap)[keys[i]] = vals[i];
         }
     }
-#endif
+
+    /** \brief 用Mixed::Coll给Collection赋值 */
+    void assign( $c coll );
+
     // JSON相关操作 ------------------------------------------------------------------------
     String myJson( bool autoKeyQuotes = true, AnsiString const & spacer = "", AnsiString const & newline = "" ) const;
     String json() const;

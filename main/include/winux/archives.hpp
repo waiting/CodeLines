@@ -78,7 +78,7 @@ public:
     ConfigureSettings & operator = ( ConfigureSettings && other );
 
     /** \brief 加载设置文件 */
-    int load( String const & settingsFile );
+    size_t load( String const & settingsFile );
 
     /** \brief 更新表达式并计算结果。（当你修改表达式后应该执行这个函数一次）
      *
@@ -115,7 +115,7 @@ public:
 
 private:
 
-    int _load( String const & settingsFile, winux::Mixed * collAsVal, winux::Mixed * collAsExpr, StringArray * loadFileChains );
+    size_t _load( String const & settingsFile, winux::Mixed * collAsVal, winux::Mixed * collAsExpr, StringArray * loadFileChains );
 
     MembersWrapper<struct ConfigureSettings_Data> _self;
 };
@@ -148,7 +148,7 @@ public:
     /** \brief 如果从CSV中读取了列标头，那可以通过列标头名获取一行记录中的某一列 */
     Mixed const & operator () ( int iRow, String const & name ) const { return _records[iRow][ _columns[name] ]; }
     /** \brief 获取读取到的记录数 */
-    int getCount() const { return _records.getCount(); }
+    size_t getCount() const { return _records.getCount(); }
 
     /** \brief 获取所有记录的引用，可直接操作 */
     Mixed & getRecords() { return _records; }
@@ -164,8 +164,183 @@ private:
     void _readRecord( String const & str, int & i, Mixed & record );
 
     void _readString( String const & str, int & i, String & valStr );
-
 };
+
+
+/** \brief 文本文档。可载入文本文件自动识别BOM，转换编码为指定编码
+
+    [00 00 FE FF] UTF32BE
+    [FF FE 00 00] UTF32LE
+    [FE FF] UTF16BE
+    [FF FE] UTF16LE
+    [EF BB BF] UTF8BOM */
+class WINUX_DLL TextArchive
+{
+public:
+    enum FileEncoding
+    {
+        MultiByte,
+        Utf8,
+        Utf8Bom,
+        Utf16Le,
+        Utf16Be,
+        Utf16 = Utf16Be,
+        Utf32Le,
+        Utf32Be,
+        Utf32 = Utf32Be
+
+    };
+
+    /** \brief 构造函数1
+     *
+     *  \param fileEncoding 文件编码
+     *  \param contentEncoding 内容编码
+     *  \param mbsEncoding 多字节字符串编码 */
+    TextArchive( FileEncoding fileEncoding = MultiByte, winux::AnsiString const & contentEncoding = "", winux::AnsiString const & mbsEncoding = "" ) : _fileEncoding(fileEncoding), _contentEncoding(contentEncoding), _mbsEncoding(mbsEncoding)
+    {
+    }
+
+    void setFileEncoding( FileEncoding fileEncoding )
+    {
+        this->_fileEncoding = fileEncoding;
+    }
+
+    FileEncoding const & getFileEncoding() const
+    {
+        return this->_fileEncoding;
+    }
+
+    void setContentEncoding( winux::AnsiString const & contentEncoding )
+    {
+        this->_contentEncoding = contentEncoding;
+    }
+
+    winux::AnsiString const & getContentEncoding() const
+    {
+        return this->_contentEncoding;
+    }
+
+    void setMultiByteEncoding( winux::AnsiString const & mbsEncoding )
+    {
+        this->_mbsEncoding = mbsEncoding;
+    }
+
+    winux::AnsiString const & getMultiByteEncoding() const
+    {
+        return this->_mbsEncoding;
+    }
+
+    void load( winux::String const & filePath, bool isConvert, winux::AnsiString const & targetEncoding = "", winux::AnsiString const & mbsEncoding = "" )
+    {
+        this->load( winux::FileGetContentsEx( filePath, false ), isConvert, targetEncoding, mbsEncoding );
+    }
+
+    void load( winux::IFile * f, bool isConvert, winux::AnsiString const & targetEncoding = "", winux::AnsiString const & mbsEncoding = "" )
+    {
+        size_t n;
+        void * buf = f->buffer(&n);
+        this->load( winux::Buffer( buf, n, true ), isConvert, targetEncoding, mbsEncoding );
+    }
+
+    void load( winux::Buffer const & content, bool isConvert, winux::AnsiString const & targetEncoding = "", winux::AnsiString const & mbsEncoding = "" )
+    {
+        this->setMultiByteEncoding(mbsEncoding);
+
+        size_t i = 0;
+        this->_recognizeEncode( content, &i );
+        this->_processContent( winux::Buffer( content.getBuf<winux::byte>() + i, content.getSize() - i, true ), isConvert, targetEncoding );
+    }
+
+    template < typename _ChTy >
+    void write( winux::XString<_ChTy> const & content )
+    {
+        this->write( winux::Buffer( (void *)content.c_str(), content.length() * sizeof(_ChTy), true ) );
+    }
+
+    template < typename _ChTy >
+    void write( winux::XString<_ChTy> const & content, winux::AnsiString const & encoding )
+    {
+        this->write( winux::Buffer( (void *)content.c_str(), content.length() * sizeof(_ChTy), true ), encoding );
+    }
+
+    void write( winux::Buffer const & content )
+    {
+        this->_pureContent.append(content);
+    }
+
+    void write( winux::Buffer const & content, winux::AnsiString const & encoding )
+    {
+        this->setContentEncoding(encoding);
+        this->_pureContent.append(content);
+    }
+
+    void save( winux::GrowBuffer * output )
+    {
+        this->save( output, this->_fileEncoding );
+    }
+
+    void save( winux::IFile * f )
+    {
+        this->save( f, this->_fileEncoding );
+    }
+
+    void save( winux::String const & filePath )
+    {
+        this->save( filePath, this->_fileEncoding );
+    }
+
+    void save( winux::GrowBuffer * output, FileEncoding fileEncoding )
+    {
+        this->saveEx( this->_pureContent, this->_contentEncoding, output, fileEncoding );
+    }
+
+    void save( winux::IFile * f, FileEncoding fileEncoding )
+    {
+        this->saveEx( this->_pureContent, this->_contentEncoding, f, fileEncoding );
+    }
+
+    void save( winux::String const & filePath, FileEncoding fileEncoding )
+    {
+        this->saveEx( this->_pureContent, this->_contentEncoding, filePath, fileEncoding );
+    }
+
+    void saveEx( winux::Buffer const & content, winux::AnsiString const & encoding, winux::GrowBuffer * output, FileEncoding fileEncoding );
+
+    void saveEx( winux::Buffer const & content, winux::AnsiString const & encoding, winux::IFile * f, FileEncoding fileEncoding )
+    {
+        winux::GrowBuffer buf;
+        this->saveEx( content, encoding, &buf, fileEncoding );
+        f->write(buf);
+    }
+
+    void saveEx( winux::Buffer const & content, winux::AnsiString const & encoding, winux::String const & filePath, FileEncoding fileEncoding )
+    {
+        winux::File file( filePath, "wb" );
+        this->saveEx( content, encoding, &file, fileEncoding );
+    }
+
+    template < typename _ChTy >
+    winux::XString<_ChTy> toString() const
+    {
+        return this->_pureContent.toString<_ChTy>();
+    }
+
+    void clear()
+    {
+        this->_pureContent.free();
+    }
+
+private:
+    void _processContent( winux::Buffer const & content, bool isConvert, winux::AnsiString const & encoding = "" );
+
+    void _recognizeEncode( winux::Buffer const & content, size_t * pI );
+
+    FileEncoding _fileEncoding;
+    winux::GrowBuffer _pureContent; ///< 纯内容
+    mutable winux::AnsiString _contentEncoding; ///< 内容编码
+    mutable winux::AnsiString _mbsEncoding; ///< 多字节字符编码
+};
+
 
 typedef winux::ulong ZRESULT;
 // These are the zresult codes:

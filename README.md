@@ -62,7 +62,7 @@
 
 4. 使用正则表达式匹配源代码文件:
 
-        CodeLines --re cpp$ main\.c .+\.h - C:\Project D:\Project
+        CodeLines --r cpp$ main\.c .+\.h - C:\Project D:\Project
 
 5. 在当前目录输出处理后的代码文件:
 

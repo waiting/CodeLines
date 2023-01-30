@@ -136,7 +136,7 @@ WINUX_FUNC_DECL(bool) FilePutContentsEx( String const & filename, Buffer const &
 WINUX_FUNC_DECL(void) WriteLog( String const & s );
 
 /** \brief 二进制日志 */
-WINUX_FUNC_DECL(void) WriteBinLog( void const * data, int size );
+WINUX_FUNC_DECL(void) WriteBinLog( void const * data, size_t size );
 
 //#define __LOG__
 #ifdef __LOG__
@@ -157,7 +157,7 @@ class WINUX_DLL FileSysError : public Error
 public:
     enum
     {
-        fseNone,
+        fseNone, ///< 没有错误
         fseNotImplemented, ///< 方法未实现
         fseFsSelfError, ///< 文件系统自身的错误
     };
@@ -205,16 +205,17 @@ interface WINUX_DLL IFile
     /** \brief 关闭文件 */
     virtual bool close();
     /** \brief 读数据,返回读取的字节数 */
-    virtual winux::ulong read( void * buf, winux::ulong size );
+    virtual size_t read( void * buf, size_t size );
     /** \brief 写数据,返回写入字节数 */
-    virtual winux::ulong write( void const * data, winux::ulong size );
-    virtual winux::ulong write( Buffer const & buf );
+    virtual size_t write( void const * data, size_t size );
+    /** \brief 写数据,返回写入字节数 */
+    virtual size_t write( Buffer const & buf );
     /** \brief 重置文件指针到头 */
     virtual bool rewind();
     /** \brief 移动文件指针,offset表示偏移量 */
-    virtual bool seek( long offset );
+    virtual bool seek( offset_t offset );
     /** \brief 获得文件指针位置 */
-    virtual winux::ulong tell();
+    virtual size_t tell();
     /** \brief 获取一行字符串,包括换行符 */
     virtual String getLine();
     /** \brief 输出字符串 */
@@ -222,9 +223,9 @@ interface WINUX_DLL IFile
     /** \brief 文件是否结束 */
     virtual bool eof();
     /** \brief 文件大小 */
-    virtual winux::ulong size();
+    virtual size_t size();
     /** \brief 取得缓冲区 */
-    virtual void * buffer( winux::ulong * size );
+    virtual void * buffer( size_t * size );
     /** \brief 取得缓冲区 */
     virtual AnsiString buffer();
 };
@@ -236,8 +237,8 @@ protected:
     String _filename;
     FILE * _fp;
     bool _autoload; // 当以读取模式打开时,是否自动载入数据到缓冲区
-    winux::ulong _fileSize; // 文件的字节大小,这玩意和数据加载大小不一定相同
-    winux::ulong _loadedSize; // 实际加载的字节大小,这玩意和文件大小不一定相同
+    size_t _fileSize; // 文件的字节大小,这玩意和数据加载大小不一定相同
+    size_t _loadedSize; // 实际加载的字节大小,这玩意和文件大小不一定相同
     Buffer _buf;
 
     void _loadData();
@@ -245,22 +246,22 @@ public:
     File( String const & filename, String const & mode, bool autoload = true );
     virtual ~File();
 
-    virtual bool open( String const & filename, String const & mode );
-    virtual bool close();
-    virtual winux::ulong read( void * buf, winux::ulong size );
-    virtual winux::ulong write( void const * data, winux::ulong size );
-    virtual winux::ulong write( Buffer const & buf );
-    virtual bool rewind();
-    virtual bool seek( long offset );
-    virtual winux::ulong tell();
-    virtual String getLine();
-    virtual int puts( String const & str );
-    virtual bool eof();
-    virtual winux::ulong size();
-    virtual void * buffer( winux::ulong * size );
-    virtual AnsiString buffer();
+    virtual bool open( String const & filename, String const & mode ) override;
+    virtual bool close() override;
+    virtual size_t read( void * buf, size_t size ) override;
+    virtual size_t write( void const * data, size_t size ) override;
+    virtual size_t write( Buffer const & buf ) override;
+    virtual bool rewind() override;
+    virtual bool seek( offset_t offset ) override;
+    virtual size_t tell() override;
+    virtual String getLine() override;
+    virtual int puts( String const & str ) override;
+    virtual bool eof() override;
+    virtual size_t size() override;
+    virtual void * buffer( size_t * size ) override;
+    virtual AnsiString buffer() override;
 
-    winux::ulong loadedSize() const { return _loadedSize; }
+    size_t loadedSize() const { return _loadedSize; }
     operator bool() const { return _fp != NULL; }
 
     DISABLE_OBJECT_COPY(File)
@@ -277,14 +278,14 @@ protected:
     long _fileno;      ///< 文件编号
 
     bool _isTextMode; ///< 是否文本模式
-    winux::ulong _blockSize; ///< 块大小
+    size_t _blockSize; ///< 块大小
 
 public:
-    BlockOutFile( String const & filename, bool isTextMode = true, winux::ulong blockSize = 1048576 );
+    BlockOutFile( String const & filename, bool isTextMode = true, size_t blockSize = 1048576 );
 
     bool nextBlock();
-    virtual winux::ulong write( void const * data, winux::ulong size );
-    virtual winux::ulong write( Buffer const & buf );
+    virtual size_t write( void const * data, size_t size ) override;
+    virtual size_t write( Buffer const & buf ) override;
     int puts( String const & str );
 
     DISABLE_OBJECT_COPY(BlockOutFile)
@@ -306,7 +307,7 @@ public:
     BlockInFile( String const & filename, bool isTextMode = true );
 
     bool nextBlock();
-    virtual bool eof();
+    virtual bool eof() override;
 
     DISABLE_OBJECT_COPY(BlockInFile)
 };

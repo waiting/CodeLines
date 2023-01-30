@@ -14,22 +14,23 @@ struct TaskCtx
 {
     enum TaskStatus
     {
-        taskPending, ///< 任务未决
-        taskRunning, ///< 任务执行中
-        taskStop ///< 任务停止
+        taskPending, //!< 任务未决
+        taskRunning, //!< 任务执行中
+        taskStop //!< 任务停止
     };
 
-    Mutex mtxTask; ///< 互斥量保护数据
-    Condition cdtTask; ///< 用于判断运行状态
-    TaskStatus status; ///< 运行状态
-    ThreadPool * pool; ///< 相关线程池
-    bool posted; ///< 是否已被投递，只有起始任务才能被投递
+    Mutex mtxTask; //!< 互斥量保护数据
+    Condition cdtTask; //!< 用于判断运行状态
+    TaskStatus status; //!< 运行状态
+    ThreadPool * pool; //!< 相关线程池
+    bool posted; //!< 是否已被投递，只有起始任务才能被投递
+    bool aborted; //!< 是否中止，任务中止则不投递nextTask
 
-    WeakPointer<TaskCtx> weakThis; ///< 自己的弱引用
-    SimplePointer<Runable> routineForPool; ///< 投递到线程池的例程
+    WeakPointer<TaskCtx> weakThis; //!< 自己的弱引用
+    SimplePointer<Runable> routineForPool; //!< 投递到线程池的例程
 
-    TaskCtx * prevTask; ///< 上一个任务
-    SharedPointer<TaskCtx> nextTask; ///< 下一个任务，执行完本任务后应该投递到任务池中
+    TaskCtx * prevTask; //!< 上一个任务
+    SharedPointer<TaskCtx> nextTask; //!< 下一个任务，执行完本任务后应该投递到任务池中
 
     /** \brief 获取起始任务 */
     TaskCtx * getStartTask()
@@ -60,7 +61,7 @@ struct TaskCtx
     /** \brief 尝试投递后续任务，如果有的话 */
     void tryPostNext();
 protected:
-    TaskCtx() : mtxTask(true), cdtTask(true), status(taskPending), pool(nullptr), posted(false), prevTask(nullptr) { }
+    TaskCtx() : mtxTask(true), cdtTask(true), status(taskPending), pool(nullptr), posted(false), aborted(false), prevTask(nullptr) { }
     virtual ~TaskCtx()
     {
         //auto start = getStartTask();
@@ -96,9 +97,12 @@ struct TaskCtxT : public TaskCtx
         catch ( winux::Error const & e )
         {
             std::cout << e.what() << std::endl;
+            this->aborted = true;
         }
         catch ( ... )
         {
+            std::cout << "unknown" << std::endl;
+            this->aborted = true;
         }
     }
 protected:
@@ -134,9 +138,12 @@ struct TaskCtxT<void> : public TaskCtx
         catch ( winux::Error const & e )
         {
             std::cout << e.what() << std::endl;
+            this->aborted = true;
         }
         catch ( ... )
         {
+            std::cout << "unknown" << std::endl;
+            this->aborted = true;
         }
     }
 protected:
@@ -152,14 +159,14 @@ class ThreadPool
 {
 public:
     /** \brief 构造函数0 */
-    explicit ThreadPool() : _mtxPool(true), _cdtPool(true), _poolStop(false)
+    explicit ThreadPool() : _mtxPool(true), _cdtPool(true), _poolStop(false), _taskChainCount(0)
     {
     }
 
     /** \brief 构造函数1
      *
      *  \param threadCount 启动的线程数量 */
-    explicit ThreadPool( int threadCount ) : _mtxPool(true), _cdtPool(true), _poolStop(false)
+    explicit ThreadPool( int threadCount ) : _mtxPool(true), _cdtPool(true), _poolStop(false), _taskChainCount(0)
     {
         this->startup(threadCount);
     }
@@ -225,13 +232,16 @@ public:
         return _group.wait(sec); // 等待全部线程退出
     }
 
-    /** \brief 当任务队列为空，就停止线程池运行，并等待线程组线程正常退出 */
+    /** \brief 当任务队列为空，任务链为0，就停止线程池运行，并等待线程组线程正常退出 */
     void whenEmptyStopAndWait()
     {
-        if ( true )
+        while ( true )
         {
             ScopeGuard guard(_mtxPool);
+            // 判断任务队列为空
             _cdtPool.waitUntil( [this] () { return _queueTask.empty(); }, _mtxPool );
+            // 判断任务链数量为0
+            if ( this->_taskChainCount <= 0 ) break;
         }
 
         this->stop();
@@ -245,6 +255,18 @@ public:
         return _queueTask.size();
     }
 
+    int incTaskChainCount()
+    {
+        ScopeGuard guard(_mtxPool);
+        return ++_taskChainCount;
+    }
+
+    int decTaskChainCount()
+    {
+        ScopeGuard guard(_mtxPool);
+        return --_taskChainCount;
+    }
+
 private:
     // 投递一个任务
     void _postTask( SharedPointer<TaskCtx> taskCtx )
@@ -254,11 +276,12 @@ private:
         _cdtPool.notify(); // 通知一个等待中的线程
     }
 
-    Mutex _mtxPool;
+    Mutex _mtxPool; // 互斥锁
     Condition _cdtPool; // 用于判断队列是否有数据
     bool _poolStop; // 线程池停止
-    ThreadGroup _group;
-    std::queue< SharedPointer<TaskCtx> > _queueTask;
+    ThreadGroup _group; // 线程组
+    std::queue< SharedPointer<TaskCtx> > _queueTask; // 任务队列
+    int _taskChainCount; // 执行中的任务链数量
 
     friend struct TaskCtx;
 
@@ -268,9 +291,9 @@ private:
 // partial TaskCtx
 inline void TaskCtx::post()
 {
-    if ( !weakThis.expired() )
+    if ( !this->weakThis.expired() )
     {
-        SharedPointer<TaskCtx> p = weakThis.lock();
+        SharedPointer<TaskCtx> p = this->weakThis.lock();
         p->status = taskPending;
         this->pool->_postTask(p);
     }
@@ -278,16 +301,14 @@ inline void TaskCtx::post()
 
 inline void TaskCtx::tryPostNext()
 {
-    /*SharedPointer<TaskCtx> nextTask;
+    // 检测是否有下个任务且任务不中止，则投递到线程池
+    if ( this->nextTask && !this->aborted )
     {
-        ScopeGuard guard(this->mtxTask);
-        nextTask = this->nextTask;
-    }*/
-
-    // 检测是否有下个任务，投递到线程池
-    if ( nextTask )
+        this->nextTask->post();
+    }
+    else
     {
-        nextTask->post();
+        this->pool->decTaskChainCount();
     }
 }
 
@@ -472,6 +493,9 @@ public:
             startTask->post();
 
             startTask->posted = true;
+
+            // 增加任务链数目
+            this->_taskCtx->pool->incTaskChainCount();
         }
 
         return *this;
@@ -490,7 +514,7 @@ public:
     }
 
 private:
-    SharedPointer< TaskCtxT<ReturnType> > _taskCtx; ///< 任务数据场景
+    SharedPointer< TaskCtxT<ReturnType> > _taskCtx; //!< 任务数据场景
 
     template < typename _Ty0 >
     friend class Task;

@@ -96,8 +96,7 @@ namespace winux
 
 inline static String::size_type __StrRFindDirSep( String const & str )
 {
-    int64 i = (int64)str.length() - 1;
-    for ( ; i >= 0; i-- )
+    for ( size_t i = str.length(); i--; )
     {
         if ( str[i] == '/' || str[i] == '\\' )
         {
@@ -165,13 +164,13 @@ WINUX_FUNC_IMPL(bool) IsAbsPath( String const & path )
 WINUX_FUNC_IMPL(String) NormalizePath( String const & path )
 {
     StringArray pathSubs;
-    int n = StrSplit( path, "/\\", &pathSubs );
-    int i, c = n;
+    size_t n = StrSplit( path, "/\\", &pathSubs );
+    size_t i, c = n;
     for ( i = 0; i < c; )
     {
         if ( i > 0 && pathSubs[i - 1] != ".." && !IsAbsPath( pathSubs[i - 1] + dirSep ) && pathSubs[i] == ".." )
         {
-            int k;
+            size_t k;
             for ( k = i + 1; k < c; k++ )
             {
                 pathSubs[k - 2] = pathSubs[k];
@@ -181,7 +180,7 @@ WINUX_FUNC_IMPL(String) NormalizePath( String const & path )
         }
         else if ( pathSubs[i] == "." )
         {
-            int k;
+            size_t k;
             for ( k = i + 1; k < c; k++ )
             {
                 pathSubs[k - 1] = pathSubs[k];
@@ -287,7 +286,7 @@ WINUX_FUNC_IMPL(String) RealPathEx( String const & path, String const & workDirA
 
 WINUX_FUNC_IMPL(String) GetCurrentDir( void )
 {
-    tchar * p;
+    String::value_type * p;
     String buf;
     int size = 128;
     do
@@ -556,8 +555,8 @@ WINUX_FUNC_IMPL(ulong) CommonDelete( String const & path )
 WINUX_FUNC_IMPL(bool) MakeDirExists( String const & path, int mode )
 {
     StringArray subPaths;
-    int n = StrSplit( path, "/\\", &subPaths );
-    int i;
+    size_t n = StrSplit( path, "/\\", &subPaths );
+    size_t i;
     String existsPath;
     for ( i = 0; i < n; ++i )
     {
@@ -609,7 +608,7 @@ WINUX_FUNC_IMPL(AnsiString) FileGetContents( String const & filename, bool textM
     catch ( std::exception const & )
     {
     }
-    return std::move(content);
+    return content;
 }
 
 WINUX_FUNC_IMPL(Buffer) FileGetContentsEx( String const & filename, bool textMode )
@@ -633,7 +632,7 @@ WINUX_FUNC_IMPL(Buffer) FileGetContentsEx( String const & filename, bool textMod
     catch ( std::exception const & )
     {
     }
-    return std::move(content);
+    return content;
 }
 
 WINUX_FUNC_IMPL(bool) FilePutContents( String const & filename, AnsiString const & content, bool textMode )
@@ -736,7 +735,7 @@ WINUX_FUNC_IMPL(void) WriteLog( String const & s )
     out << Format( "[pid:%d]", getpid() ) << sz << " - " << AddCSlashes(s) << std::endl;
 }
 
-WINUX_FUNC_IMPL(void) WriteBinLog( void const* data, int size )
+WINUX_FUNC_IMPL(void) WriteBinLog( void const * data, size_t size )
 {
     String exeFile;
     String exePath = FilePath( GetExecutablePath(), &exeFile );
@@ -829,17 +828,17 @@ bool IFile::close()
     throw FileSysError( FileSysError::fseNotImplemented, "This method is not implemented" );
 }
 
-winux::ulong IFile::read( void * buf, winux::ulong size )
+size_t IFile::read( void * buf, size_t size )
 {
     throw FileSysError( FileSysError::fseNotImplemented, "This method is not implemented" );
 }
 
-winux::ulong IFile::write( void const * data, winux::ulong size )
+size_t IFile::write( void const * data, size_t size )
 {
     throw FileSysError( FileSysError::fseNotImplemented, "This method is not implemented" );
 }
 
-winux::ulong IFile::write( Buffer const & buf )
+size_t IFile::write( Buffer const & buf )
 {
     throw FileSysError( FileSysError::fseNotImplemented, "This method is not implemented" );
 }
@@ -849,12 +848,12 @@ bool IFile::rewind()
     throw FileSysError( FileSysError::fseNotImplemented, "This method is not implemented" );
 }
 
-bool IFile::seek( long offset )
+bool IFile::seek( offset_t offset )
 {
     throw FileSysError( FileSysError::fseNotImplemented, "This method is not implemented" );
 }
 
-winux::ulong IFile::tell()
+size_t IFile::tell()
 {
     throw FileSysError( FileSysError::fseNotImplemented, "This method is not implemented" );
 }
@@ -874,12 +873,12 @@ bool IFile::eof()
     throw FileSysError( FileSysError::fseNotImplemented, "This method is not implemented" );
 }
 
-winux::ulong IFile::size()
+size_t IFile::size()
 {
     throw FileSysError( FileSysError::fseNotImplemented, "This method is not implemented" );
 }
 
-void * IFile::buffer( winux::ulong * size )
+void * IFile::buffer( size_t * size )
 {
     throw FileSysError( FileSysError::fseNotImplemented, "This method is not implemented" );
 }
@@ -942,19 +941,19 @@ bool File::close()
     return false;
 }
 
-winux::ulong File::read( void * buf, winux::ulong size )
+size_t File::read( void * buf, size_t size )
 {
     assert( _fp != NULL );
-    return (winux::ulong)fread( buf, 1, size, _fp );
+    return fread( buf, 1, size, _fp );
 }
 
-winux::ulong File::write( void const * data, winux::ulong size )
+size_t File::write( void const * data, size_t size )
 {
     assert( _fp != NULL );
-    return (winux::ulong)fwrite( data, 1, size, _fp );
+    return fwrite( data, 1, size, _fp );
 }
 
-winux::ulong File::write( Buffer const & buf )
+size_t File::write( Buffer const & buf )
 {
     return this->write( buf.getBuf(), buf.getSize() );
 }
@@ -966,13 +965,13 @@ bool File::rewind()
     return true;
 }
 
-bool File::seek( long offset )
+bool File::seek( offset_t offset )
 {
     assert( _fp != NULL );
-    return !fseek( _fp, offset, SEEK_SET );
+    return !fseek( _fp, (long)offset, SEEK_SET );
 }
 
-winux::ulong File::tell()
+size_t File::tell()
 {
     assert( _fp != NULL );
     return ftell(_fp);
@@ -982,7 +981,7 @@ winux::String File::getLine()
 {
     assert( _fp != NULL );
     String line;
-    winux::ulong const N = 4096;
+    size_t const N = 4096;
     String::value_type sz[N];
     bool hasLineSep = false;
     do
@@ -1024,12 +1023,12 @@ bool File::eof()
     return feof(_fp) != 0;
 }
 
-winux::ulong File::size()
+size_t File::size()
 {
     return _fileSize;
 }
 
-void * File::buffer( winux::ulong * size )
+void * File::buffer( size_t * size )
 {
     *size = _loadedSize;
     return _buf.getBuf();
@@ -1037,7 +1036,7 @@ void * File::buffer( winux::ulong * size )
 
 AnsiString File::buffer()
 {
-    winux::ulong len;
+    size_t len;
     AnsiString::value_type * s = (AnsiString::value_type *)this->buffer(&len);
     if ( !s || len < 1 )
     {
@@ -1047,7 +1046,7 @@ AnsiString File::buffer()
 }
 
 // class BlockOutFile -------------------------------------------------------------------------
-BlockOutFile::BlockOutFile( String const & filename, bool isTextMode, winux::ulong blockSize )
+BlockOutFile::BlockOutFile( String const & filename, bool isTextMode, size_t blockSize )
 : File( "", "", false )
 {
     _fileno = 1;
@@ -1074,7 +1073,7 @@ bool BlockOutFile::nextBlock()
     return r;
 }
 
-winux::ulong BlockOutFile::write( void const * data, winux::ulong size )
+size_t BlockOutFile::write( void const * data, size_t size )
 {
     _loadedSize += size;
     if ( _loadedSize > _blockSize )
@@ -1085,7 +1084,7 @@ winux::ulong BlockOutFile::write( void const * data, winux::ulong size )
     return File::write( data, size );
 }
 
-winux::ulong BlockOutFile::write( Buffer const & buf )
+size_t BlockOutFile::write( Buffer const & buf )
 {
     return this->write( buf.getBuf(), buf.getSize() );
 }

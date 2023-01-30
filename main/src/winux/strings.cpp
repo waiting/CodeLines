@@ -58,11 +58,11 @@ inline static bool InCharList( _ChTy ch, XString<_ChTy> const & charlist )
 }
 
 template < typename _ChTy >
-inline static int Impl_StrSplit( XString<_ChTy> const & str, XString<_ChTy> const & delimList, XStringArray<_ChTy> * arr, bool alwaysRetOneElem )
+inline static size_t Impl_StrSplit( XString<_ChTy> const & str, XString<_ChTy> const & delimList, XStringArray<_ChTy> * arr, bool alwaysRetOneElem )
 {
     if ( !alwaysRetOneElem && str.empty() ) return 0;
 
-    int count = 0;
+    size_t count = 0;
     XString<_ChTy> tmp;
 
     for ( size_t i = 0; i < str.length(); i++ )
@@ -83,18 +83,18 @@ inline static int Impl_StrSplit( XString<_ChTy> const & str, XString<_ChTy> cons
     return count;
 }
 
-WINUX_FUNC_IMPL(int) StrSplitA( AnsiString const & str, AnsiString const & delimList, AnsiStringArray * arr, bool alwaysRetOneElem )
+WINUX_FUNC_IMPL(size_t) StrSplitA( AnsiString const & str, AnsiString const & delimList, AnsiStringArray * arr, bool alwaysRetOneElem )
 {
     return Impl_StrSplit( str, delimList, arr, alwaysRetOneElem );
 }
 
-WINUX_FUNC_IMPL(int) StrSplitW( UnicodeString const & str, UnicodeString const & delimList, UnicodeStringArray * arr, bool alwaysRetOneElem )
+WINUX_FUNC_IMPL(size_t) StrSplitW( UnicodeString const & str, UnicodeString const & delimList, UnicodeStringArray * arr, bool alwaysRetOneElem )
 {
     return Impl_StrSplit( str, delimList, arr, alwaysRetOneElem );
 }
 
 template < typename _ChTy >
-inline static int Impl_StrSplit2( XString<_ChTy> const & str, XString<_ChTy> const & delim, XStringArray<_ChTy> * arr, bool alwaysRetOneElem )
+inline static size_t Impl_StrSplit2( XString<_ChTy> const & str, XString<_ChTy> const & delim, XStringArray<_ChTy> * arr, bool alwaysRetOneElem )
 {
     if ( !alwaysRetOneElem && str.empty() ) return 0;
     if ( delim.empty() )
@@ -103,7 +103,7 @@ inline static int Impl_StrSplit2( XString<_ChTy> const & str, XString<_ChTy> con
         return 1;
     }
 
-    int count = 0;
+    size_t count = 0;
     size_t cur = 0;
     size_t found = cur;
 
@@ -118,12 +118,12 @@ inline static int Impl_StrSplit2( XString<_ChTy> const & str, XString<_ChTy> con
     return count;
 }
 
-WINUX_FUNC_IMPL(int) StrSplit2A( AnsiString const & str, AnsiString const & delim, AnsiStringArray * arr, bool alwaysRetOneElem )
+WINUX_FUNC_IMPL(size_t) StrSplit2A( AnsiString const & str, AnsiString const & delim, AnsiStringArray * arr, bool alwaysRetOneElem )
 {
     return Impl_StrSplit2( str, delim, arr, alwaysRetOneElem );
 }
 
-WINUX_FUNC_IMPL(int) StrSplit2W( UnicodeString const & str, UnicodeString const & delim, UnicodeStringArray * arr, bool alwaysRetOneElem )
+WINUX_FUNC_IMPL(size_t) StrSplit2W( UnicodeString const & str, UnicodeString const & delim, UnicodeStringArray * arr, bool alwaysRetOneElem )
 {
     return Impl_StrSplit2( str, delim, arr, alwaysRetOneElem );
 }
@@ -156,20 +156,11 @@ WINUX_FUNC_IMPL(UnicodeString) StrJoinW( UnicodeString const & delim, UnicodeStr
 }
 
 template < typename _ChTy >
-inline static XString<_ChTy> Impl_StrJoinEx( XString<_ChTy> const & delim, XStringArray<_ChTy> const & arr, int start, int elemCount )
+inline static XString<_ChTy> Impl_StrJoinEx( XString<_ChTy> const & delim, XStringArray<_ChTy> const & arr, size_t start, size_t elemCount )
 {
     XString<_ChTy> res;
-    int count = 0;
-    if ( elemCount < 0 )
-    {
-        count = (int)arr.size() - start;
-    }
-    else
-    {
-        count = ( elemCount < (int)arr.size() - start ? elemCount : (int)arr.size() - start );
-    }
-
-    for ( int i = 0; i < count; i++ )
+    size_t count = ( elemCount < arr.size() - start ? elemCount : arr.size() - start );
+    for ( size_t i = 0; i < count; i++ )
     {
         if ( i != 0 )
         {
@@ -180,33 +171,33 @@ inline static XString<_ChTy> Impl_StrJoinEx( XString<_ChTy> const & delim, XStri
     return res;
 }
 
-WINUX_FUNC_IMPL(AnsiString) StrJoinExA( AnsiString const & delim, AnsiStringArray const & arr, int start, int elemCount )
+WINUX_FUNC_IMPL(AnsiString) StrJoinExA( AnsiString const & delim, AnsiStringArray const & arr, size_t start, size_t elemCount )
 {
     return Impl_StrJoinEx( delim, arr, start, elemCount );
 }
 
-WINUX_FUNC_IMPL(UnicodeString) StrJoinExW( UnicodeString const & delim, UnicodeStringArray const & arr, int start, int elemCount )
+WINUX_FUNC_IMPL(UnicodeString) StrJoinExW( UnicodeString const & delim, UnicodeStringArray const & arr, size_t start, size_t elemCount )
 {
     return Impl_StrJoinEx( delim, arr, start, elemCount );
 }
 
 template < typename _ChTy >
-inline static XString<_ChTy> Impl_StrInsert( XString<_ChTy> const & str, int start, int end, XString<_ChTy> const & insert )
+inline static XString<_ChTy> Impl_StrInsert( XString<_ChTy> const & str, size_t start, size_t end, XString<_ChTy> const & insert )
 {
     XString<_ChTy> res;
     res += str.substr( 0, start );
     res += insert;
-    if ( end < (int)str.length() )
+    if ( end < str.length() )
         res += str.substr(end);
     return res;
 }
 
-WINUX_FUNC_IMPL(AnsiString) StrInsertA( AnsiString const & str, int start, int end, AnsiString const & insert )
+WINUX_FUNC_IMPL(AnsiString) StrInsertA( AnsiString const & str, size_t start, size_t end, AnsiString const & insert )
 {
     return Impl_StrInsert( str, start, end, insert );
 }
 
-WINUX_FUNC_IMPL(UnicodeString) StrInsertW( UnicodeString const & str, int start, int end, UnicodeString const & insert )
+WINUX_FUNC_IMPL(UnicodeString) StrInsertW( UnicodeString const & str, size_t start, size_t end, UnicodeString const & insert )
 {
     return Impl_StrInsert( str, start, end, insert );
 }
@@ -283,7 +274,7 @@ WINUX_FUNC_IMPL(AnsiString &) StrMakeUpperA( AnsiString * str )
 WINUX_FUNC_IMPL(AnsiString) StrUpperA( AnsiString str )
 {
     Impl_StrMakeUpper(&str);
-    return std::move(str);
+    return str;
 }
 
 WINUX_FUNC_IMPL(UnicodeString &) StrMakeUpperW( UnicodeString * str )
@@ -294,7 +285,7 @@ WINUX_FUNC_IMPL(UnicodeString &) StrMakeUpperW( UnicodeString * str )
 WINUX_FUNC_IMPL(UnicodeString) StrUpperW( UnicodeString str )
 {
     Impl_StrMakeUpper(&str);
-    return std::move(str);
+    return str;
 }
 
 WINUX_FUNC_IMPL(AnsiString &) StrMakeLowerA( AnsiString * str )
@@ -305,7 +296,7 @@ WINUX_FUNC_IMPL(AnsiString &) StrMakeLowerA( AnsiString * str )
 WINUX_FUNC_IMPL(AnsiString) StrLowerA( AnsiString str )
 {
     Impl_StrMakeLower(&str);
-    return std::move(str);
+    return str;
 }
 
 WINUX_FUNC_IMPL(UnicodeString &) StrMakeLowerW( UnicodeString * str )
@@ -316,7 +307,7 @@ WINUX_FUNC_IMPL(UnicodeString &) StrMakeLowerW( UnicodeString * str )
 WINUX_FUNC_IMPL(UnicodeString) StrLowerW( UnicodeString str )
 {
     Impl_StrMakeLower(&str);
-    return std::move(str);
+    return str;
 }
 
 template < typename _ChTy >
@@ -341,7 +332,7 @@ template < typename _ChTy >
 inline static XString<_ChTy> Impl_StrSubtract( XString<_ChTy> str1, XString<_ChTy> const & str2 )
 {
     Impl_StrMakeReplace<_ChTy>( &str1, str2, Literal<_ChTy>::emptyStr, 0 );
-    return std::move(str1);
+    return str1;
 }
 
 WINUX_FUNC_IMPL(AnsiString) StrSubtractA( AnsiString str1, AnsiString const & str2 )
@@ -506,6 +497,16 @@ WINUX_FUNC_IMPL(uint64) StrToXqA( char const * nptr, char const ** endptr, int i
 }
 
 WINUX_FUNC_IMPL(uint64) StrToXqW( wchar const * nptr, wchar const ** endptr, int ibase, int flags )
+{
+    return Impl_StrToXq( nptr, endptr, ibase, flags );
+}
+
+WINUX_FUNC_IMPL(uint64) StrToXqU16( char16 const * nptr, char16 const ** endptr, int ibase, int flags )
+{
+    return Impl_StrToXq( nptr, endptr, ibase, flags );
+}
+
+WINUX_FUNC_IMPL(uint64) StrToXqU32( char32 const * nptr, char32 const ** endptr, int ibase, int flags )
 {
     return Impl_StrToXq( nptr, endptr, ibase, flags );
 }
@@ -801,8 +802,8 @@ inline static XString<_ChTy> Impl_StripSlashes( XString<_ChTy> const & str, XStr
     using MyUT = typename UT< sizeof(_ChTy) >::type;
 
     XString<_ChTy> result;
-    int octMaxLen = (int)ceil( log((MyUT)(-1)) / log(8) );
-    int hexMaxLen = (int)ceil( log((MyUT)(-1)) / log(16) );
+    size_t octMaxLen = (size_t)ceil( log((MyUT)(-1)) / log(8) );
+    size_t hexMaxLen = (size_t)ceil( log((MyUT)(-1)) / log(16) );
 
     for ( MyConstIterator it = str.begin(); it != str.end(); )
     {
@@ -1127,9 +1128,9 @@ WINUX_FUNC_IMPL(UnicodeString) AddQuotesW( UnicodeString const & str, UnicodeStr
 }
 
 template < typename _ChTy >
-inline static bool Impl_StrGetLine( XString<_ChTy> * line, XString<_ChTy> const & str, int * i, XString<_ChTy> * nl )
+inline static bool Impl_StrGetLine( XString<_ChTy> * line, XString<_ChTy> const & str, size_t * i, XString<_ChTy> * nl )
 {
-    if ( *i >= (int)str.length() )
+    if ( *i >= str.length() )
     {
         return false;
     }
@@ -1137,8 +1138,8 @@ inline static bool Impl_StrGetLine( XString<_ChTy> * line, XString<_ChTy> const 
     IF_PTR(line)->clear();
     IF_PTR(nl)->clear();
 
-    int start = *i;
-    while ( *i < (int)str.length() )
+    size_t start = *i;
+    while ( *i < str.length() )
     {
         _ChTy ch = str[*i];
         switch ( ch )
@@ -1160,7 +1161,7 @@ inline static bool Impl_StrGetLine( XString<_ChTy> * line, XString<_ChTy> const 
                 case Literal<_ChTy>::crChar:
                     ASSIGN_PTR(nl) += ch;
                     ++ *i; // skip '\r'
-                    if ( *i < (int)str.length() && ( ch = str[*i] ) == Literal<_ChTy>::lfChar )
+                    if ( *i < str.length() && ( ch = str[*i] ) == Literal<_ChTy>::lfChar )
                     {
                         ASSIGN_PTR(nl) += ch;
                         ++ *i; // skip '\n'
@@ -1176,7 +1177,7 @@ inline static bool Impl_StrGetLine( XString<_ChTy> * line, XString<_ChTy> const 
         }
     }
 
-    if ( *i == (int)str.length() )
+    if ( *i == str.length() )
     {
         ASSIGN_PTR(line) = str.substr(start);
     }
@@ -1184,12 +1185,12 @@ RETURN:
     return true;
 }
 
-WINUX_FUNC_IMPL(bool) StrGetLineA( AnsiString * line, AnsiString const & str, int * i, AnsiString * nl )
+WINUX_FUNC_IMPL(bool) StrGetLineA( AnsiString * line, AnsiString const & str, size_t * i, AnsiString * nl )
 {
     return Impl_StrGetLine( line, str, i, nl );
 }
 
-WINUX_FUNC_IMPL(bool) StrGetLineW( UnicodeString * line, UnicodeString const & str, int * i, UnicodeString * nl )
+WINUX_FUNC_IMPL(bool) StrGetLineW( UnicodeString * line, UnicodeString const & str, size_t * i, UnicodeString * nl )
 {
     return Impl_StrGetLine( line, str, i, nl );
 }
@@ -1401,19 +1402,18 @@ WINUX_FUNC_IMPL(UnicodeStringArray) CollateIdentifierToArrayW( UnicodeString con
     return Impl_CollateIdentifierToArray( identifier, flags );
 }
 
-// -----------------------------------------------------------------------------------------
-WINUX_FUNC_IMPL(std::vector<int>) KmpCalcNext( char const * substr, int sublen )
+// KMP算法 ---------------------------------------------------------------------------------
+WINUX_FUNC_IMPL(std::vector<int>) KmpCalcNext( char const * substr, size_t sublen )
 {
     return _Templ_KmpCalcNext< char, int >( substr, sublen );
 }
 
-/* KMP匹配 */
-WINUX_FUNC_IMPL(int) KmpMatchEx( char const * str, int len, char const * substr, int sublen, int pos, std::vector<int> const & next )
+WINUX_FUNC_IMPL(size_t) KmpMatchEx( char const * str, size_t len, char const * substr, size_t sublen, size_t pos, std::vector<int> const & next )
 {
     return _Templ_KmpMatchEx< char, int >( str, len, substr, sublen, pos, next );
 }
 
-WINUX_FUNC_IMPL(int) KmpMatch( char const * str, int len, char const * substr, int sublen, int pos )
+WINUX_FUNC_IMPL(size_t) KmpMatch( char const * str, size_t len, char const * substr, size_t sublen, size_t pos )
 {
     return KmpMatchEx( str, len, substr, sublen, pos, KmpCalcNext( substr, sublen ) );
 }
@@ -1495,7 +1495,7 @@ MultiMatch::MatchResult MultiMatch::search( String const & str, int offset ) con
     MatchResult res = { -1, -1 };
     int count = (int)_matchItems.size();
     std::vector<MatchState> states(count);
-    tchar const * mainStr = str.c_str() + offset;
+    String::value_type const * mainStr = str.c_str() + offset;
     int i; // 主字符串当前字符位置
     bool nomove = false; // 不移动i
     memset( &states[0], 0, count * sizeof(MatchState) );
@@ -1823,7 +1823,7 @@ WINUX_FUNC_IMPL(UnicodeString) StringToUnicode( String const & str )
 #endif
 }
 
-AnsiString FormatExVA( uint cch, char const * fmt, va_list args )
+AnsiString FormatExVA( size_t cch, char const * fmt, va_list args )
 {
     AnsiString str;
     str.resize( cch + 1 );
@@ -1831,7 +1831,7 @@ AnsiString FormatExVA( uint cch, char const * fmt, va_list args )
     return str.c_str();
 }
 
-UnicodeString FormatExVW( uint cch, wchar const * fmt, va_list args )
+UnicodeString FormatExVW( size_t cch, wchar const * fmt, va_list args )
 {
     UnicodeString str;
     str.resize( cch + 1 );
@@ -1839,14 +1839,14 @@ UnicodeString FormatExVW( uint cch, wchar const * fmt, va_list args )
     return str.c_str();
 }
 
-AnsiString FormatExA( uint cch, char const * fmt, ... )
+AnsiString FormatExA( size_t cch, char const * fmt, ... )
 {
     va_list args;
     va_start( args, fmt );
     return FormatExVA( cch, fmt, args );
 }
 
-UnicodeString FormatExW( uint cch, wchar const * fmt, ... )
+UnicodeString FormatExW( size_t cch, wchar const * fmt, ... )
 {
     va_list args;
     va_start( args, fmt );
@@ -1992,8 +1992,11 @@ static struct __ConvLangCodePage
         _convLangCP["UTF-8"] = CP_UTF8;
         _convLangCP["WCHAR_T"] = 1200;
         _convLangCP["UCS-2LE"] = 1200;
+        _convLangCP["UTF-16LE"] = 1200;
         _convLangCP["UCS-2"] = 1201;
+        _convLangCP["UTF-16"] = 1201;
         _convLangCP["UCS-2BE"] = 1201;
+        _convLangCP["UTF-16BE"] = 1201;
         _convLangCP["GBK"] = 936;
         _convLangCP["SHIFT_JIS"] = 932;
         _convLangCP["BIG5"] = 950;
@@ -2094,7 +2097,7 @@ static int __WcsToMbs( uint cp1, wchar const * str1, uint size1, uint cp2, char 
     UnicodeString strTmp(str1);
     if ( cp1 == 1201 )
     {
-        if ( !strTmp.empty() ) __Ucs2LeBe( &strTmp[0], strTmp.length() );
+        if ( !strTmp.empty() ) __Ucs2LeBe( &strTmp[0], (uint)strTmp.length() );
         str1 = strTmp.c_str();
     }
     //LOG( Format( "cp2=%d,str1=%s,size1=%d", cp2, UnicodeToLocal(str1).c_str(), size1 ) );
@@ -2119,7 +2122,7 @@ static int __WcsToMbs( uint cp1, wchar const * str1, uint size1, uint cp2, char 
         str1,
         size1 / sizeof(wchar),
         *str2,
-        length + 1,
+        sizeof(char) * ( length + 1 ),
         NULL,
         NULL
     );
@@ -2221,12 +2224,12 @@ Conv::~Conv()
     _self.destroy(); //
 }
 
-int Conv::convert( char const * srcBuf, size_t srcSize, char * * destBuf )
+size_t Conv::convert( char const * srcBuf, size_t srcSize, char * * destBuf )
 {
 #if defined(__GNUC__) || defined(HAVE_ICONV_H)
-    int r = 0, outBytes = 0, err = 0;
+    size_t r = 0, outBytes = 0, err = 0;
     size_t destSize = srcSize;
-    *destBuf = NULL;
+    *destBuf = nullptr;
     do
     {
         char * srcP = (char *)srcBuf;
@@ -2236,14 +2239,14 @@ int Conv::convert( char const * srcBuf, size_t srcSize, char * * destBuf )
         char * buf = *destBuf;
         size_t outBytesLeft = destSize;
         memset( *destBuf, 0, destSize );
-        //返回不可逆转换的字符个数
-        r = (int)iconv( _self->_cd, &srcP, &srcN, &buf, &outBytesLeft );
-        outBytes = (int)( destSize - outBytesLeft ); // 求得输出的字节数
+        // 返回不可逆转换的字符个数
+        r = iconv( _self->_cd, &srcP, &srcN, &buf, &outBytesLeft );
+        outBytes = destSize - outBytesLeft; // 求得输出的字节数
         err = errno;
     } while ( r == -1 && err == E2BIG );
     return outBytes;
 #else
-    return __StrCodeConvert( _self->_fromCP, srcBuf, srcSize, _self->_toCP, destBuf );
+    return __StrCodeConvert( _self->_fromCP, srcBuf, (uint)srcSize, _self->_toCP, destBuf );
 #endif
 }
 

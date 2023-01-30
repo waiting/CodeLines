@@ -19,15 +19,22 @@ namespace winux
     LITERAL_ITEM_SC(ty, Z, pref, "Z") \
     LITERAL_ITEM_SC(ty, a, pref, "a") \
     LITERAL_ITEM_SC(ty, b, pref, "b") \
-    LITERAL_ITEM_SC(ty, t, pref, "t") \
-    LITERAL_ITEM_SC(ty, n, pref, "n") \
-    LITERAL_ITEM_SC(ty, v, pref, "v") \
     LITERAL_ITEM_SC(ty, f, pref, "f") \
+    LITERAL_ITEM_SC(ty, n, pref, "n") \
     LITERAL_ITEM_SC(ty, r, pref, "r") \
+    LITERAL_ITEM_SC(ty, t, pref, "t") \
+    LITERAL_ITEM_SC(ty, v, pref, "v") \
     LITERAL_ITEM_SC(ty, x, pref, "x") \
     LITERAL_ITEM_SC(ty, z, pref, "z") \
     LITERAL_ITEM_SC(ty, zero, pref, "0") \
+    LITERAL_ITEM_SC(ty, one, pref, "1") \
+    LITERAL_ITEM_SC(ty, two, pref, "2") \
+    LITERAL_ITEM_SC(ty, three, pref, "3") \
+    LITERAL_ITEM_SC(ty, four, pref, "4") \
+    LITERAL_ITEM_SC(ty, five, pref, "5") \
+    LITERAL_ITEM_SC(ty, six, pref, "6") \
     LITERAL_ITEM_SC(ty, seven, pref, "7") \
+    LITERAL_ITEM_SC(ty, eight, pref, "8") \
     LITERAL_ITEM_SC(ty, nine, pref, "9") \
     LITERAL_ITEM_SC(ty, nul, pref, "\0") \
     LITERAL_ITEM_SC(ty, bel, pref, "\a") \
@@ -47,6 +54,7 @@ namespace winux
     LITERAL_ITEM_SC(ty, quote, pref, "\'") \
     LITERAL_ITEM_SC(ty, sharp, pref, "#") \
     LITERAL_ITEM_S(ty, empty, pref, "") \
+    LITERAL_ITEM_S(ty, crlf, pref, "\r\n") \
     LITERAL_ITEM_S(ty, slash_a, pref, "\\a") \
     LITERAL_ITEM_S(ty, slash_b, pref, "\\b") \
     LITERAL_ITEM_S(ty, slash_t, pref, "\\t") \
@@ -57,9 +65,11 @@ namespace winux
     LITERAL_ITEM_S(ty, slash_x, pref, "\\x") \
     LITERAL_ITEM_S(ty, cslashes, pref, "\n\r\t\v\a\\\'\"")
 
-
 template < typename _ChTy >
-struct Literal
+struct Literal;
+
+template <>
+struct Literal<char>
 {
     LITERAL_ITEM_LIST( char, );
 };
@@ -89,9 +99,9 @@ struct Literal<char32_t>
  *  \param str
  *  \param delimList
  *  \param arr
- *  \return int */
-WINUX_FUNC_DECL(int) StrSplitA( AnsiString const & str, AnsiString const & delimList, AnsiStringArray * arr, bool alwaysRetOneElem = false );
-WINUX_FUNC_DECL(int) StrSplitW( UnicodeString const & str, UnicodeString const & delimList, UnicodeStringArray * arr, bool alwaysRetOneElem = false );
+ *  \return size_t */
+WINUX_FUNC_DECL(size_t) StrSplitA( AnsiString const & str, AnsiString const & delimList, AnsiStringArray * arr, bool alwaysRetOneElem = false );
+WINUX_FUNC_DECL(size_t) StrSplitW( UnicodeString const & str, UnicodeString const & delimList, UnicodeStringArray * arr, bool alwaysRetOneElem = false );
 
 /** \brief 字符串分割2
  *
@@ -100,21 +110,21 @@ WINUX_FUNC_DECL(int) StrSplitW( UnicodeString const & str, UnicodeString const &
  *  \param str
  *  \param delim
  *  \param arr
- *  \return int */
-WINUX_FUNC_DECL(int) StrSplit2A( AnsiString const & str, AnsiString const & delim, AnsiStringArray * arr, bool alwaysRetOneElem = false );
-WINUX_FUNC_DECL(int) StrSplit2W( UnicodeString const & str, UnicodeString const & delim, UnicodeStringArray * arr, bool alwaysRetOneElem = false );
+ *  \return size_t */
+WINUX_FUNC_DECL(size_t) StrSplit2A( AnsiString const & str, AnsiString const & delim, AnsiStringArray * arr, bool alwaysRetOneElem = false );
+WINUX_FUNC_DECL(size_t) StrSplit2W( UnicodeString const & str, UnicodeString const & delim, UnicodeStringArray * arr, bool alwaysRetOneElem = false );
 
 /** \brief 字符串组合连接 */
 WINUX_FUNC_DECL(AnsiString) StrJoinA( AnsiString const & delim, AnsiStringArray const & arr );
 WINUX_FUNC_DECL(UnicodeString) StrJoinW( UnicodeString const & delim, UnicodeStringArray const & arr );
 
 /** \brief 字符串组合连接。start表示开始位置，elemCount表示自开始位置的元素数，默认-1表示自开始位置的全部元素 */
-WINUX_FUNC_DECL(AnsiString) StrJoinExA( AnsiString const & delim, AnsiStringArray const & arr, int start = 0, int elemCount = -1 );
-WINUX_FUNC_DECL(UnicodeString) StrJoinExW( UnicodeString const & delim, UnicodeStringArray const & arr, int start = 0, int elemCount = -1 );
+WINUX_FUNC_DECL(AnsiString) StrJoinExA( AnsiString const & delim, AnsiStringArray const & arr, size_t start = 0, size_t elemCount = -1 );
+WINUX_FUNC_DECL(UnicodeString) StrJoinExW( UnicodeString const & delim, UnicodeStringArray const & arr, size_t start = 0, size_t elemCount = -1 );
 
 /** \brief 在指定位置插入字符串 */
-WINUX_FUNC_DECL(AnsiString) StrInsertA( AnsiString const & str, int start, int end, AnsiString const & insert );
-WINUX_FUNC_DECL(UnicodeString) StrInsertW( UnicodeString const & str, int start, int end, UnicodeString const & insert );
+WINUX_FUNC_DECL(AnsiString) StrInsertA( AnsiString const & str, size_t start, size_t end, AnsiString const & insert );
+WINUX_FUNC_DECL(UnicodeString) StrInsertW( UnicodeString const & str, size_t start, size_t end, UnicodeString const & insert );
 
 /** \brief 使字符串全文替换 */
 WINUX_FUNC_DECL(AnsiString &) StrMakeReplaceA( AnsiString * str, AnsiString const & findText, AnsiString const & replaceText, size_t offset = 0 );
@@ -158,6 +168,8 @@ enum StrToXqFlags
 /** \brief 字符串转换成8字节的数字 */
 WINUX_FUNC_DECL(uint64) StrToXqA( char const * nptr, char const ** endptr, int ibase, int flags );
 WINUX_FUNC_DECL(uint64) StrToXqW( wchar const * nptr, wchar const ** endptr, int ibase, int flags );
+WINUX_FUNC_DECL(uint64) StrToXqU16( char16 const * nptr, char16 const ** endptr, int ibase, int flags );
+WINUX_FUNC_DECL(uint64) StrToXqU32( char32 const * nptr, char32 const ** endptr, int ibase, int flags );
 
 WINUX_FUNC_DECL(int64) StrToInt64A( AnsiString const & numStr, int ibase );
 WINUX_FUNC_DECL(int64) StrToInt64W( UnicodeString const & numStr, int ibase );
@@ -190,8 +202,8 @@ WINUX_FUNC_DECL(UnicodeString) AddQuotesW( UnicodeString const & str, UnicodeStr
  *  然而，现实不像想象的那么美好，多数情况下是处理不同平台下的文本文件，譬如在unix系平台下处理windows或mac的文本文件。\n
  *  由于行分隔不同，导致处理有一定困难。\n
  *  此函数正为此而存在。首先，你需要用二进制模式打开文件，然后读取全部数据，调用此函数取行即可。 */
-WINUX_FUNC_DECL(bool) StrGetLineA( AnsiString * line, AnsiString const & str, int * i, AnsiString * nl = nullptr );
-WINUX_FUNC_DECL(bool) StrGetLineW( UnicodeString * line, UnicodeString const & str, int * i, UnicodeString * nl = nullptr );
+WINUX_FUNC_DECL(bool) StrGetLineA( AnsiString * line, AnsiString const & str, size_t * i, AnsiString * nl = nullptr );
+WINUX_FUNC_DECL(bool) StrGetLineW( UnicodeString * line, UnicodeString const & str, size_t * i, UnicodeString * nl = nullptr );
 
 /** \brief 整理标识符串的标记 */
 enum CollateIdentifierStringFlag : winux::uint
@@ -276,19 +288,19 @@ WINUX_FUNC_DECL(UnicodeStringArray) CollateIdentifierToArrayW( UnicodeString con
 
 /** \brief KMP匹配算法 求子串next值 */
 template < typename _ChTy, typename _IndexType >
-inline static std::vector<_IndexType> _Templ_KmpCalcNext( _ChTy const * substr, int sublen )
+inline static std::vector<_IndexType> _Templ_KmpCalcNext( _ChTy const * substr, size_t sublen )
 {
     std::vector<_IndexType> next( sublen + 1 );
-    int j = 0, k = -1;
+    ssize_t j = 0, k = -1;
     next[0] = -1;
-    while ( j < sublen )
+    while ( j < (ssize_t)sublen )
     {
         if ( k == -1 || substr[j] == substr[k] )
         {
             j++;
             k++;
             if ( substr[j] != substr[k] )
-                next[j] = k;
+                next[j] = (_IndexType)k;
             else
                 next[j] = next[k];
         }
@@ -302,12 +314,12 @@ inline static std::vector<_IndexType> _Templ_KmpCalcNext( _ChTy const * substr, 
 
 /** \brief KMP匹配算法 传入已经求好的next进行匹配 */
 template < typename _ChTy, typename _IndexType >
-inline static int _Templ_KmpMatchEx( _ChTy const * str, int len, _ChTy const * substr, int sublen, int pos, std::vector<_IndexType> const & next )
+inline static size_t _Templ_KmpMatchEx( _ChTy const * str, size_t len, _ChTy const * substr, size_t sublen, size_t pos, std::vector<_IndexType> const & next )
 {
-    int i, j;
+    ssize_t i, j;
     i = pos;
     j = 0;
-    while ( i < len && j < sublen )
+    while ( i < (ssize_t)len && j < (ssize_t)sublen )
     {
         if ( j == -1 || str[i] == substr[j] )
         {
@@ -319,22 +331,22 @@ inline static int _Templ_KmpMatchEx( _ChTy const * str, int len, _ChTy const * s
             j = next[j];
         }
     }
-    return j == sublen ? i - sublen : -1;
+    return j == (ssize_t)sublen ? i - (ssize_t)sublen : -1;
 }
 
 /** \brief KMP匹配算法 匹配 */
 template < typename _ChTy, typename _IndexType >
-inline static int _Templ_KmpMatch( _ChTy const * str, int len, _ChTy const * substr, int sublen, int pos )
+inline static size_t _Templ_KmpMatch( _ChTy const * str, size_t len, _ChTy const * substr, size_t sublen, size_t pos )
 {
     return _Templ_KmpMatchEx<_ChTy, _IndexType>( str, len, substr, sublen, pos, _Templ_KmpCalcNext( substr, sublen ) );
 }
 
 /** \brief KMP字符串匹配算法 求子串next值 */
-WINUX_FUNC_DECL(std::vector<int>) KmpCalcNext( char const * substr, int sublen );
+WINUX_FUNC_DECL(std::vector<int>) KmpCalcNext( char const * substr, size_t sublen );
 /** \brief KMP字符串匹配算法 传入已经求好的next进行匹配 */
-WINUX_FUNC_DECL(int) KmpMatchEx( char const * str, int len, char const * substr, int sublen, int pos, std::vector<int> const & next );
+WINUX_FUNC_DECL(size_t) KmpMatchEx( char const * str, size_t len, char const * substr, size_t sublen, size_t pos, std::vector<int> const & next );
 /** \brief KMP字符串匹配算法 匹配 */
-WINUX_FUNC_DECL(int) KmpMatch( char const * str, int len, char const * substr, int sublen, int pos );
+WINUX_FUNC_DECL(size_t) KmpMatch( char const * str, size_t len, char const * substr, size_t sublen, size_t pos );
 
 
 /** \brief 用来使得String能够用operator<<来赋值 */
@@ -418,7 +430,7 @@ public:
         int pos;    ///< 匹配到的位置
         int item;   ///< 匹配项的索引
     };
-    /// 替换函数的类型
+    /// \brief 替换函数的类型
     typedef String (* ReplaceFuncType)( MultiMatch const * matchObj, int item, void * extra );
 
     /** \brief 构造函数，要求匹配项和替换项 */
@@ -501,10 +513,10 @@ WINUX_FUNC_DECL(AnsiString) StringToLocal( String const & str );
 WINUX_FUNC_DECL(UnicodeString) StringToUnicode( String const & str );
 
 /** \brief 格式化字符串 */
-WINUX_DLL AnsiString FormatExVA( uint cch, char const * fmt, va_list args );
-WINUX_DLL UnicodeString FormatExVW( uint cch, wchar const * fmt, va_list args );
-WINUX_DLL AnsiString FormatExA( uint cch, char const * fmt, ... );
-WINUX_DLL UnicodeString FormatExW( uint cch, wchar const * fmt, ... );
+WINUX_DLL AnsiString FormatExVA( size_t cch, char const * fmt, va_list args );
+WINUX_DLL UnicodeString FormatExVW( size_t cch, wchar const * fmt, va_list args );
+WINUX_DLL AnsiString FormatExA( size_t cch, char const * fmt, ... );
+WINUX_DLL UnicodeString FormatExW( size_t cch, wchar const * fmt, ... );
 WINUX_DLL AnsiString FormatA( char const * fmt, ... );
 WINUX_DLL UnicodeString FormatW( wchar const * fmt, ... );
 
@@ -556,8 +568,8 @@ public:
      *  \param srcBuf 需要转换的字符串缓冲区
      *  \param srcSize 缓冲区的大小(in bytes)
      *  \param destBuf 转换得到的结果,函数自动分配内存,用户负责free()释放
-     *  \return int 输出到destBuf的字节数 */
-    int convert( char const * srcBuf, size_t srcSize, char * * destBuf );
+     *  \return size_t 输出到destBuf的字节数 */
+    size_t convert( char const * srcBuf, size_t srcSize, char * * destBuf );
 
     /** \brief 进行编码转换
      *
@@ -567,7 +579,7 @@ public:
     _RetString convert( _String const & str )
     {
         typename _RetString::pointer buf;
-        size_t outBytes = this->convert( (char *)str.c_str(), (str.length() + 1) * sizeof(typename _String::value_type), (char **)&buf );
+        size_t outBytes = this->convert( (char *)str.c_str(), ( str.length() + 1 ) * sizeof(typename _String::value_type), (char **)&buf );
         _RetString s = (typename _RetString::pointer)buf;
         free(buf);
         return s;

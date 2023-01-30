@@ -32,7 +32,7 @@ WINUX_FUNC_DECL(String) HtmlDecode( String const & str );
 
 
 /** \brief Base64编码 */
-WINUX_FUNC_DECL(String) Base64Encode( void const * buf, int size );
+WINUX_FUNC_DECL(String) Base64Encode( void const * buf, size_t size );
 /** \brief Base64编码 */
 WINUX_FUNC_DECL(String) Base64Encode( AnsiString const & data );
 /** \brief Base64编码 */
@@ -55,7 +55,7 @@ WINUX_FUNC_DECL(Buffer) Sha1( void const * buf, size_t size );
 inline Buffer Sha1( Buffer const & buf ) { return Sha1( buf.getBuf(), buf.getSize() ); }
 
 
-/// \brief 内容加密错误代码
+/** \brief 内容加密错误代码 */
 enum EncryptErrorCode
 {
     ERR_SUCCEED,
@@ -64,14 +64,18 @@ enum EncryptErrorCode
 };
 
 /** \brief 未进行C++包装的内容加密 */
-WINUX_FUNC_DECL(int) RawEncrypt( unsigned char const * data, int data_size, unsigned char * buf, int buf_size, int * out_size );
+WINUX_FUNC_DECL(int) RawEncrypt( byte const * data, size_t dataSize, byte * buf, size_t bufSize, size_t * outSize );
 /** \brief 未进行C++包装的内容解密，与RawEncrypt()配套 */
-WINUX_FUNC_DECL(int) RawDecrypt( unsigned char const * encrypt_data, int data_size, unsigned char * buf, int buf_size, int * out_size );
+WINUX_FUNC_DECL(int) RawDecrypt( byte const * encryptData, size_t dataSize, byte * buf, size_t bufSize, size_t * outSize );
 
 /** \brief 内容加密 */
 WINUX_FUNC_DECL(AnsiString) EncryptContent( AnsiString const & content );
+/** \brief 内容加密 */
+WINUX_FUNC_DECL(Buffer) EncryptContent( Buffer const & content );
 /** \brief 内容解密，与EncryptContent()配套 */
 WINUX_FUNC_DECL(AnsiString) DecryptContent( AnsiString const & encryptContent );
+/** \brief 内容解密，与EncryptContent()配套 */
+WINUX_FUNC_DECL(Buffer) DecryptContent( Buffer const & encryptContent );
 
 #define EncryptCArray(data) EncryptContent( CBufferToAnsiString( data, sizeof(data) ) )
 #define EncryptCBuffer( buf, size ) EncryptContent( CBufferToAnsiString( buf, size ) )

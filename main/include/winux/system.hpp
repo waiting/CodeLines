@@ -11,12 +11,12 @@ namespace winux
     typedef pid_t HProcess;
 #endif
 
-/** \brief 把命令行解析成Argv数组
+/** \brief 把命令行解析成Argv数组。不支持命令行& && | ||
  *
  *  \param cmd String const &
  *  \param argv StringArray *
  *  \return int 解析到的参数个数 */
-WINUX_FUNC_DECL(int) CommandLineToArgv( winux::String const & cmd, winux::StringArray * argv );
+WINUX_FUNC_DECL(size_t) CommandLineToArgv( winux::String const & cmd, winux::StringArray * argv );
 
 /** \brief 新建子进程执行指定命令，并用管道重定向了标准设备
  *
@@ -88,10 +88,10 @@ public:
         Mixed const & desiredFlags,
         Mixed const & optionSymbols = "=,:"
     );
-    int getParamsCount() const { return _params.getCount(); }
-    int getOptionsCount() const { return _options.getCount(); }
-    int getFlagsCount() const { return _flags.getCount(); }
-    int getValuesCount() const { return _values.getCount(); }
+    size_t getParamsCount() const { return _params.getCount(); }
+    size_t getOptionsCount() const { return _options.getCount(); }
+    size_t getFlagsCount() const { return _flags.getCount(); }
+    size_t getValuesCount() const { return _values.getCount(); }
 
     bool hasParam( String const & name ) const { return _params.has(name); }
     bool hasOption( String const & name ) const { return _options.has(name); }
@@ -103,10 +103,10 @@ public:
     Mixed const & getFlag( int i ) const { return _flags[i]; }
     Mixed const & getValue( int i ) const { return _values[i]; }
 
-    int getParamIndexInArgv( String const & name ) const { return _paramIndexesInArgv.find(name) != _paramIndexesInArgv.end() ? _paramIndexesInArgv.at(name) : -1; }
-    int getOptionIndexInArgv( String const & name ) const { return _optionIndexesInArgv.find(name) != _optionIndexesInArgv.end() ? _optionIndexesInArgv.at(name) : -1; }
-    int getFlagIndexInArgv( String const & name ) const { return _flagIndexesInArgv.find(name) != _flagIndexesInArgv.end() ? _flagIndexesInArgv.at(name) : -1; }
-    int getValueIndexInArgv( String const & value ) const { return _valueIndexesInArgv.find(value) != _valueIndexesInArgv.end() ? _valueIndexesInArgv.at(value) : -1; }
+    size_t getParamIndexInArgv( String const & name ) const { return _paramIndexesInArgv.find(name) != _paramIndexesInArgv.end() ? _paramIndexesInArgv.at(name) : -1; }
+    size_t getOptionIndexInArgv( String const & name ) const { return _optionIndexesInArgv.find(name) != _optionIndexesInArgv.end() ? _optionIndexesInArgv.at(name) : -1; }
+    size_t getFlagIndexInArgv( String const & name ) const { return _flagIndexesInArgv.find(name) != _flagIndexesInArgv.end() ? _flagIndexesInArgv.at(name) : -1; }
+    size_t getValueIndexInArgv( String const & value ) const { return _valueIndexesInArgv.find(value) != _valueIndexesInArgv.end() ? _valueIndexesInArgv.at(value) : -1; }
 
     Mixed & getParams() { return _params; }
     Mixed & getOptions() { return _options; }
@@ -120,19 +120,21 @@ private:
 
     int _argc;
     char const ** _argv;
+
     StringArray _desiredParams;
     StringArray _desiredOptions;
     StringArray _desiredFlags;
     StringArray _optionSymbols;
 
     Mixed _params;  ///< 参数Collection
-    std::map< String, int > _paramIndexesInArgv;    ///< 参数在argv中的索引
+    std::map< String, size_t > _paramIndexesInArgv;    ///< 参数在argv中的索引
     Mixed _options; ///< 选项Collection
-    std::map< String, int > _optionIndexesInArgv;   ///< 选项在argv中的索引
+    std::map< String, size_t > _optionIndexesInArgv;   ///< 选项在argv中的索引
     Mixed _flags;   ///< 旗标Array
-    std::map< String, int > _flagIndexesInArgv;     ///< 旗标在argv中的索引
+    std::map< String, size_t > _flagIndexesInArgv;     ///< 旗标在argv中的索引
     Mixed _values;  ///< 值Array
-    std::map< String, int > _valueIndexesInArgv;    ///< 值在argv中的索引
+    std::map< String, size_t > _valueIndexesInArgv;    ///< 值在argv中的索引
+
     DISABLE_OBJECT_COPY(CommandLineVars)
 };
 
@@ -152,9 +154,9 @@ class WINUX_DLL CommandLine
     static bool _IsName( String const & arg, StringArray const & prefixes );
 public:
     CommandLine( int argc, char * argv[], String const & paramPrefix = "- -- /" );
-    int getParamCount() const { return (int)_params.size(); }
-    int getValueCount() const { return (int)_values.size(); }
-    int getFlagCount() const { return (int)_flags.size(); }
+    size_t getParamCount() const { return _params.size(); }
+    size_t getValueCount() const { return _values.size(); }
+    size_t getFlagCount() const { return _flags.size(); }
     bool hasParam( String const & name ) const { return isset( _params, name ); }
     bool hasValue( String const & value ) const { return std::find( _values.begin(), _values.end(), value ) != _values.end(); }
     bool hasFlag( String const & name ) const { return std::find( _flags.begin(), _flags.end(), name ) != _flags.end(); }
@@ -213,8 +215,8 @@ class DllLoaderError : public Error
 {
 public:
     enum {
-        DllLoader_FuncNotFound = 0x00000100,
-        DllLoader_ModuleNoLoaded
+        DllLoader_FuncNotFound = 0x00000100,    ///< 函数未找到
+        DllLoader_ModuleNoLoaded                ///< 模块没加载
     };
 
     DllLoaderError( int errType, AnsiString const & errStr ) throw() : Error( errType, errStr ) { }

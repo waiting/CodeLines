@@ -726,7 +726,7 @@ WINUX_FUNC_IMPL(AnsiString) MixedToJsonA( Mixed const & v, bool autoKeyQuotes )
     if ( v.isArray() )
     {
         s += "[ ";
-        for ( int i = 0; i < v.getCount(); ++i )
+        for ( size_t i = 0; i < v.getCount(); ++i )
         {
             if ( i != 0 ) s += ", ";
             s += MixedToJsonA( v[i] , autoKeyQuotes );
@@ -787,7 +787,7 @@ WINUX_FUNC_IMPL(UnicodeString) MixedToJsonW( Mixed const & v, bool autoKeyQuotes
     if ( v.isArray() )
     {
         s += L"[ ";
-        for ( int i = 0; i < v.getCount(); ++i )
+        for ( size_t i = 0; i < v.getCount(); ++i )
         {
             if ( i != 0 ) s += L", ";
             s += MixedToJsonW( v[i], autoKeyQuotes );
@@ -842,6 +842,4 @@ WINUX_FUNC_IMPL(UnicodeString) MixedToJsonW( Mixed const & v, bool autoKeyQuotes
     return s;
 }
 
-
-
-}
+} // namespace winux

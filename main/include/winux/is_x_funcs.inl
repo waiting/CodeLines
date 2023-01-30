@@ -50,8 +50,14 @@ inline static bool IsLowerAlphabet( unsigned ch )
     return ch >= 'a' && ch <= 'z';
 }
 
+// 是否为字母
+inline static bool IsAlphabet( unsigned ch )
+{
+    return ( ( ch | 0x20 ) >= 'a' && ( ch | 0x20 ) <= 'z' );
+}
+
 // 是否为分隔符
 inline static bool IsDelimChar( unsigned ch )
 {
-    return !( IsDigit(ch) || IsUpperAlphabet(ch) || IsLowerAlphabet(ch) || ch > 127U );
+    return !( IsDigit(ch) || IsAlphabet(ch) || ch > 127U );
 }

@@ -50,44 +50,44 @@ class WINUX_DLL MD5
 {
 public:
   typedef unsigned int size_type; // must be 32bit
-  typedef unsigned char uint1; //  8bit
-  typedef unsigned int uint4;  // 32bit
+  typedef unsigned char uint8; //  8bit
+  typedef unsigned int uint32;  // 32bit
 
   MD5();
-  MD5(const AnsiString& text);
-  void update(const unsigned char *buf, size_type length);
-  void update(const char *buf, size_type length);
+  MD5(const AnsiString& content);
+  void update(const unsigned char buf[], size_type length);
+  void update(const char buf[], size_type length);
   MD5& finalize();
 
-  String hexdigest() const;
-  void digestres( uint1 res[16] ) const;
-  String md5() const; // hexdigest()
-  friend std::ostream& operator<<(std::ostream&, MD5 &md5);
+  AnsiString hexdigest() const;
+  Buffer digestres() const;
+  AnsiString toString() const; //!< hexdigest()
+  friend std::ostream& operator<<(std::ostream& out, MD5& md5);
 
 private:
   void init();
-  enum {blocksize = 64}; // VC6 won't eat a const static int here
+  enum {blocksize = 64}; //!< VC6 won't eat a const static int here
 
-  void transform(const uint1 block[blocksize]);
-  static void Decode(uint4 output[], const uint1 input[], size_type len);
-  static void Encode(uint1 output[], const uint4 input[], size_type len);
+  void transform(const uint8 block[blocksize]);
+  static void Decode(uint32 output[], const uint8 input[], size_type len);
+  static void Encode(uint8 output[], const uint32 input[], size_type len);
 
   bool finalized;
-  uint1 buffer[blocksize]; // bytes that didn't fit in last 64 byte chunk
-  uint4 count[2];   // 64bit counter for number of bits (lo, hi)
-  uint4 state[4];   // digest so far
-  uint1 digest[16]; // the result
+  uint8 buffer[blocksize]; //!< bytes that didn't fit in last 64 byte chunk
+  uint32 count[2];   //!< 64bit counter for number of bits (lo, hi)
+  uint32 state[4];   //!< digest so far
+  uint8 digest[16]; //!< the result
 
   // low level logic operations
-  static inline uint4 F(uint4 x, uint4 y, uint4 z);
-  static inline uint4 G(uint4 x, uint4 y, uint4 z);
-  static inline uint4 H(uint4 x, uint4 y, uint4 z);
-  static inline uint4 I(uint4 x, uint4 y, uint4 z);
-  static inline uint4 RotateLeft(uint4 x, int n);
-  static inline void FF(uint4 &a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 ac);
-  static inline void GG(uint4 &a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 ac);
-  static inline void HH(uint4 &a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 ac);
-  static inline void II(uint4 &a, uint4 b, uint4 c, uint4 d, uint4 x, uint4 s, uint4 ac);
+  static inline uint32 F(uint32 x, uint32 y, uint32 z);
+  static inline uint32 G(uint32 x, uint32 y, uint32 z);
+  static inline uint32 H(uint32 x, uint32 y, uint32 z);
+  static inline uint32 I(uint32 x, uint32 y, uint32 z);
+  static inline uint32 RotateLeft(uint32 x, int n);
+  static inline void FF(uint32 &a, uint32 b, uint32 c, uint32 d, uint32 x, uint32 s, uint32 ac);
+  static inline void GG(uint32 &a, uint32 b, uint32 c, uint32 d, uint32 x, uint32 s, uint32 ac);
+  static inline void HH(uint32 &a, uint32 b, uint32 c, uint32 d, uint32 x, uint32 s, uint32 ac);
+  static inline void II(uint32 &a, uint32 b, uint32 c, uint32 d, uint32 x, uint32 s, uint32 ac);
 };
 
 } // namespace winux
