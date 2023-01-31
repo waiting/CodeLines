@@ -13,19 +13,13 @@ namespace winux
 
 // 特殊平台变量 -------------------------------------------------------------
 #if defined(_MSC_VER) || defined(WIN32)
-String const dirSep = "\\"; ///< 目录分割符
-String const lineSep = "\r\n"; ///< 行分割符
-String const pathEnvSep = ";"; ///< PATH环境变量路径分割符
-String const DirSep = "\\"; ///< 目录分割符
-String const LineSep = "\r\n"; ///< 行分割符
-String const PathEnvSep = ";"; ///< PATH环境变量路径分割符
+String const DirSep = "\\"; //!< 目录分割符
+String const LineSep = "\r\n"; //!< 行分割符
+String const PathEnvSep = ";"; //!< PATH环境变量路径分割符
 #else
-String const dirSep = "/"; ///< 目录分割符
-String const lineSep = "\n"; ///< 行分割符
-String const pathEnvSep = ":"; ///< PATH环境变量路径分割符
-String const DirSep = "/"; ///< 目录分割符
-String const LineSep = "\n"; ///< 行分割符
-String const PathEnvSep = ":"; ///< PATH环境变量路径分割符
+String const DirSep = "/"; //!< 目录分割符
+String const LineSep = "\n"; //!< 行分割符
+String const PathEnvSep = ":"; //!< PATH环境变量路径分割符
 #endif
 
 /** \brief 获取可执行文件的全路径 */

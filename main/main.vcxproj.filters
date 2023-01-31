@@ -16,6 +16,9 @@
     <Filter Include="源文件\winux">
       <UniqueIdentifier>{dcee49a6-ec44-4e19-b7dc-25a211e23a09}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\winux">
+      <UniqueIdentifier>{c25e3509-fa4a-4afe-8cb9-aa7853573ebe}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -48,10 +51,87 @@
     <ClCompile Include="src\winux\time.cpp">
       <Filter>源文件\winux</Filter>
     </ClCompile>
+    <ClCompile Include="src\winux\eienexpr.cpp">
+      <Filter>源文件\winux</Filter>
+    </ClCompile>
+    <ClCompile Include="src\winux\archives.cpp">
+      <Filter>源文件\winux</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\functional.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="include\winux\archives.hpp">
+      <Filter>头文件\winux</Filter>
+    </ClInclude>
+    <ClInclude Include="include\winux\console.hpp">
+      <Filter>头文件\winux</Filter>
+    </ClInclude>
+    <ClInclude Include="include\winux\eienexpr.hpp">
+      <Filter>头文件\winux</Filter>
+    </ClInclude>
+    <ClInclude Include="include\winux\encoding.hpp">
+      <Filter>头文件\winux</Filter>
+    </ClInclude>
+    <ClInclude Include="include\winux\filesys.hpp">
+      <Filter>头文件\winux</Filter>
+    </ClInclude>
+    <ClInclude Include="include\winux\json.hpp">
+      <Filter>头文件\winux</Filter>
+    </ClInclude>
+    <ClInclude Include="include\winux\md5.hpp">
+      <Filter>头文件\winux</Filter>
+    </ClInclude>
+    <ClInclude Include="include\winux\smartptr.hpp">
+      <Filter>头文件\winux</Filter>
+    </ClInclude>
+    <ClInclude Include="include\winux\strings.hpp">
+      <Filter>头文件\winux</Filter>
+    </ClInclude>
+    <ClInclude Include="include\winux\system.hpp">
+      <Filter>头文件\winux</Filter>
+    </ClInclude>
+    <ClInclude Include="include\winux\threads.hpp">
+      <Filter>头文件\winux</Filter>
+    </ClInclude>
+    <ClInclude Include="include\winux\threadtask.hpp">
+      <Filter>头文件\winux</Filter>
+    </ClInclude>
+    <ClInclude Include="include\winux\time.hpp">
+      <Filter>头文件\winux</Filter>
+    </ClInclude>
+    <ClInclude Include="include\winux\utilities.hpp">
+      <Filter>头文件\winux</Filter>
+    </ClInclude>
+    <ClInclude Include="include\winux\winux.hpp">
+      <Filter>头文件\winux</Filter>
+    </ClInclude>
+    <ClInclude Include="include\winux\compress.hpp">
+      <Filter>头文件\winux</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="include\winux\eienexpr_errstrs.inl">
+      <Filter>头文件\winux</Filter>
+    </None>
+    <None Include="include\winux\func_invoker.inl">
+      <Filter>头文件\winux</Filter>
+    </None>
+    <None Include="include\winux\func_runable.inl">
+      <Filter>头文件\winux</Filter>
+    </None>
+    <None Include="include\winux\func_traits.inl">
+      <Filter>头文件\winux</Filter>
+    </None>
+    <None Include="include\winux\is_x_funcs.inl">
+      <Filter>头文件\winux</Filter>
+    </None>
+    <None Include="include\winux\mixed_ref_specified_type.inl">
+      <Filter>头文件\winux</Filter>
+    </None>
+    <None Include="include\winux\system_detection.inl">
+      <Filter>头文件\winux</Filter>
+    </None>
   </ItemGroup>
 </Project>

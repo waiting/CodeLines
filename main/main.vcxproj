@@ -159,7 +159,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\winux\archives.cpp" />
     <ClCompile Include="src\winux\console.cpp" />
+    <ClCompile Include="src\winux\eienexpr.cpp" />
     <ClCompile Include="src\winux\filesys.cpp" />
     <ClCompile Include="src\winux\json.cpp" />
     <ClCompile Include="src\winux\smartptr.cpp" />
@@ -172,6 +174,31 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\functional.hpp" />
+    <ClInclude Include="include\winux\archives.hpp" />
+    <ClInclude Include="include\winux\compress.hpp" />
+    <ClInclude Include="include\winux\console.hpp" />
+    <ClInclude Include="include\winux\eienexpr.hpp" />
+    <ClInclude Include="include\winux\encoding.hpp" />
+    <ClInclude Include="include\winux\filesys.hpp" />
+    <ClInclude Include="include\winux\json.hpp" />
+    <ClInclude Include="include\winux\md5.hpp" />
+    <ClInclude Include="include\winux\smartptr.hpp" />
+    <ClInclude Include="include\winux\strings.hpp" />
+    <ClInclude Include="include\winux\system.hpp" />
+    <ClInclude Include="include\winux\threads.hpp" />
+    <ClInclude Include="include\winux\threadtask.hpp" />
+    <ClInclude Include="include\winux\time.hpp" />
+    <ClInclude Include="include\winux\utilities.hpp" />
+    <ClInclude Include="include\winux\winux.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="include\winux\eienexpr_errstrs.inl" />
+    <None Include="include\winux\func_invoker.inl" />
+    <None Include="include\winux\func_runable.inl" />
+    <None Include="include\winux\func_traits.inl" />
+    <None Include="include\winux\is_x_funcs.inl" />
+    <None Include="include\winux\mixed_ref_specified_type.inl" />
+    <None Include="include\winux\system_detection.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

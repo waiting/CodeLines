@@ -157,7 +157,7 @@ WINUX_FUNC_IMPL(bool) IsAbsPath( String const & path )
 #if defined(OS_WIN)
     return path.empty() ? false : ( ( path[0] == '/' || path[0] == '\\' ) || ( path.length() > 1 && path[1] == ':' ) );
 #else
-    return path.empty() ? false : path[0] == dirSep[0];
+    return path.empty() ? false : path[0] == DirSep[0];
 #endif
 }
 
@@ -168,7 +168,7 @@ WINUX_FUNC_IMPL(String) NormalizePath( String const & path )
     size_t i, c = n;
     for ( i = 0; i < c; )
     {
-        if ( i > 0 && pathSubs[i - 1] != ".." && !IsAbsPath( pathSubs[i - 1] + dirSep ) && pathSubs[i] == ".." )
+        if ( i > 0 && pathSubs[i - 1] != ".." && !IsAbsPath( pathSubs[i - 1] + DirSep ) && pathSubs[i] == ".." )
         {
             size_t k;
             for ( k = i + 1; k < c; k++ )
@@ -197,11 +197,11 @@ WINUX_FUNC_IMPL(String) NormalizePath( String const & path )
         r += pathSubs[i];
         if ( i != c - 1 )
         {
-            r += dirSep;
+            r += DirSep;
         }
     }
 
-    if ( r.length() > 1 && r[r.length() - 1] == dirSep[0] )
+    if ( r.length() > 1 && r[r.length() - 1] == DirSep[0] )
     {
         r = r.substr( 0, r.length() - 1 );
     }
@@ -239,7 +239,7 @@ WINUX_FUNC_IMPL(String) RealPath( String const & path )
         {
             currWorkDir.resize(512);
             _getcwd( &currWorkDir[0], sizeof(String::value_type) * 512 );
-            return NormalizePath( currWorkDir.c_str() + dirSep + path );
+            return NormalizePath( currWorkDir.c_str() + DirSep + path );
         }
     }
 }
@@ -427,7 +427,7 @@ WINUX_FUNC_IMPL(String &) PathWithSep( String * path )
     {
         if ( (*path)[ path->length() - 1 ] != '\\' || (*path)[ path->length() - 1 ] == '/' ) // 末尾不是分隔符
         {
-            *path += dirSep;
+            *path += DirSep;
         }
     }
     return *path;
@@ -563,11 +563,11 @@ WINUX_FUNC_IMPL(bool) MakeDirExists( String const & path, int mode )
         String subPath = subPaths[i];
         if ( i == 0 && subPath.empty() ) // 首项为空，表明为linux平台绝对路径
         {
-            existsPath += dirSep;
+            existsPath += DirSep;
         }
         else if ( i == 0 && subPath.length() > 1 && subPath[1] == ':' ) // 首项长度大于1,并且第二个为':',表明为windows平台绝对路径
         {
-            existsPath += subPath + dirSep;
+            existsPath += subPath + DirSep;
         }
         else if ( !subPath.empty() ) // 子项不为空
         {
@@ -581,7 +581,7 @@ WINUX_FUNC_IMPL(bool) MakeDirExists( String const & path, int mode )
             #endif
             }
             if ( i != n - 1 )
-                existsPath += dirSep;
+                existsPath += DirSep;
         }
     }
     return true;
@@ -725,7 +725,7 @@ WINUX_FUNC_IMPL(void) WriteLog( String const & s )
 {
     String exeFile;
     String exePath = FilePath( GetExecutablePath(), &exeFile );
-    std::ofstream out( ( exePath + dirSep + FileTitle(exeFile) + ".log" ).c_str(), std::ios_base::out | std::ios_base::app );
+    std::ofstream out( ( exePath + DirSep + FileTitle(exeFile) + ".log" ).c_str(), std::ios_base::out | std::ios_base::app );
     //_getpid();
     time_t tt = time(NULL);
     struct tm * t = gmtime(&tt);
@@ -739,7 +739,7 @@ WINUX_FUNC_IMPL(void) WriteBinLog( void const * data, size_t size )
 {
     String exeFile;
     String exePath = FilePath( GetExecutablePath(), &exeFile );
-    std::ofstream out( ( exePath + dirSep + FileTitle(exeFile) + ".binlog" ).c_str(), std::ios_base::out | std::ios_base::binary | std::ios_base::app );
+    std::ofstream out( ( exePath + DirSep + FileTitle(exeFile) + ".binlog" ).c_str(), std::ios_base::out | std::ios_base::binary | std::ios_base::app );
     out.write( (char const *)data, size );
 }
 
@@ -990,7 +990,7 @@ winux::String File::getLine()
         if ( fgets( sz, N, _fp ) )
         {
             String::size_type len = strlen(sz); // 获得读取到的字符串长度
-            hasLineSep = sz[len - 1] == '\n'; // 判断是否读取到换行符
+            hasLineSep = sz[len - 1] == Literal<String::value_type>::lfChar; // 判断是否读取到换行符
             if ( hasLineSep )
             {
                 line.append( sz, len );
