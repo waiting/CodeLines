@@ -215,8 +215,8 @@ class DllLoaderError : public Error
 {
 public:
     enum {
-        DllLoader_FuncNotFound = 0x00000100,    ///< 函数未找到
-        DllLoader_ModuleNoLoaded                ///< 模块没加载
+        DllLoader_FuncNotFound = 0x00000100,    //!< 函数未找到
+        DllLoader_ModuleNoLoaded                //!< 模块没加载
     };
 
     DllLoaderError( int errType, AnsiString const & errStr ) throw() : Error( errType, errStr ) { }
@@ -285,7 +285,7 @@ public:
         return Function<_PfnType>( funcName, pfn );
     }
 
-    winux::String dllModuleFile; ///< Dll模块文件
+    winux::String dllModuleFile; //!< DLL模块文件
 private:
     ModuleHandle _hDllModule;
 

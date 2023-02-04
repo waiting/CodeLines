@@ -53,9 +53,8 @@ bool AnalyzeParams( ProcessContext * ctx, CommandLineVars const & cmdVars )
     int k = 0;
     for ( ; k < cmdVars.getValuesCount(); k++ )
     {
-        thread_local regex re("\\+|\\-");
         String v = cmdVars.getValue(k);
-        if ( regex_match( v, re ) )
+        if ( v == "+" || v == "-" )
         {
             ctx->expansionMode = v;
             break;
