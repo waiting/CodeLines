@@ -136,13 +136,13 @@ bool AnalyzeParams( ProcessContext * ctx, CommandLineVars const & cmdVars )
 // 扫描代码文件
 int DoScanCodeFiles(
     ProcessContext * ctx,
-    String searchTopDir, ///< 记录搜索起始的顶层目录
+    String searchTopDir, // 记录搜索起始的顶层目录
     StringArray const & searchPaths,
     std::function< void ( String const & topDir, int patternIndex, String const & path, String const & fileName ) > func
 )
 {
     int filesCount = 0;
-    for ( auto const & searchPath : searchPaths )
+    for ( auto && searchPath : searchPaths )
     {
         if ( searchTopDir.empty() ) searchTopDir = PathNoSep(searchPath);
 
@@ -150,7 +150,7 @@ int DoScanCodeFiles(
         FolderData( searchPath, &files, &subDirs );
         for ( size_t i = 0; i < ctx->patterns.size(); i++ )
         {
-            for ( auto const & fileName : files )
+            for ( auto && fileName : files )
             {
                 if ( ctx->re )
                 {
@@ -478,6 +478,10 @@ int main( int argc, char const * argv[] )
         {
             Mixed & result = ctx.jsonWhole["result"];
             Mixed & patResult = result[ ctx.patterns[i] ];
+            if ( ctx.silent && patResult["files"].isArray() && patResult["files"].isEmpty() )
+            {
+                patResult["files"] = ctx.results[i].files;
+            }
             patResult["origin_bytes"] = ctx.results[i].originBytes;
             patResult["origin_lines"] = ctx.results[i].originLines;
             patResult["bytes"] = ctx.results[i].bytes;

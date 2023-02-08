@@ -73,16 +73,16 @@ WINUX_FUNC_DECL(ulong) FileSize( String const & filename );
 WINUX_FUNC_DECL(uint64) FileSize64( String const & filename );
 
 /** \brief 获取文件时间 */
-WINUX_FUNC_DECL(bool) FileTime( String const & filename, ulong * ctime, ulong * mtime, ulong * atime );
+WINUX_FUNC_DECL(bool) FileTime( String const & filename, time_t * ctime, time_t * mtime, time_t * atime );
 /** \brief 获取文件创建时间 */
-WINUX_FUNC_DECL(ulong) FileCTime( String const & filename );
+WINUX_FUNC_DECL(time_t) FileCTime( String const & filename );
 /** \brief 获取文件修改时间 */
-WINUX_FUNC_DECL(ulong) FileMTime( String const & filename );
+WINUX_FUNC_DECL(time_t) FileMTime( String const & filename );
 /** \brief 获取文件访问时间 */
-WINUX_FUNC_DECL(ulong) FileATime( String const & filename );
+WINUX_FUNC_DECL(time_t) FileATime( String const & filename );
 
 /** \brief 更新文件修改时间,访问时间 */
-WINUX_FUNC_DECL(bool) FileTouch( String const & filename, ulong time = (ulong)-1, ulong atime = (ulong)-1 );
+WINUX_FUNC_DECL(bool) FileTouch( String const & filename, time_t time = (time_t)-1, time_t atime = (time_t)-1 );
 
 /** \brief 路径分隔符整理 */
 WINUX_FUNC_DECL(String) PathWithSep( String const & path );
@@ -100,10 +100,10 @@ WINUX_FUNC_DECL(void) FolderData( String const & path, StringArray * fileArr, St
  *
  *  ext可以是扩展名串，也可以是一个数组。
  *  当isRecursive=false时，arrFiles返回的结果不用区别目录，因此不包含目录部分的路径。 */
-WINUX_FUNC_DECL(ulong) EnumFiles( String const & path, Mixed const & ext, StringArray * arrFiles, bool isRecursive = false );
+WINUX_FUNC_DECL(size_t) EnumFiles( String const & path, Mixed const & ext, StringArray * arrFiles, bool isRecursive = false );
 
 /** \brief 通用删除,删除文件夹和文件,返回删除的文件夹和文件数 */
-WINUX_FUNC_DECL(ulong) CommonDelete( String const & path );
+WINUX_FUNC_DECL(size_t) CommonDelete( String const & path );
 
 /** \brief 确保目录路径的存在性，如果不存在则创建。
  *
@@ -151,9 +151,9 @@ class WINUX_DLL FileSysError : public Error
 public:
     enum
     {
-        fseNone, ///< 没有错误
-        fseNotImplemented, ///< 方法未实现
-        fseFsSelfError, ///< 文件系统自身的错误
+        fseNone, //!< 没有错误
+        fseNotImplemented, //!< 方法未实现
+        fseFsSelfError, //!< 文件系统自身的错误
     };
     FileSysError( int errType, AnsiString const & s ) throw() : Error( errType, s ) { }
 };
@@ -198,19 +198,19 @@ interface WINUX_DLL IFile
     virtual bool open( String const & filename, String const & mode );
     /** \brief 关闭文件 */
     virtual bool close();
-    /** \brief 读数据,返回读取的字节数 */
+    /** \brief 读数据，返回读取的字节数 */
     virtual size_t read( void * buf, size_t size );
-    /** \brief 写数据,返回写入字节数 */
+    /** \brief 写数据，返回写入字节数 */
     virtual size_t write( void const * data, size_t size );
-    /** \brief 写数据,返回写入字节数 */
+    /** \brief 写数据，返回写入字节数 */
     virtual size_t write( Buffer const & buf );
     /** \brief 重置文件指针到头 */
     virtual bool rewind();
-    /** \brief 移动文件指针,offset表示偏移量 */
+    /** \brief 移动文件指针，offset表示偏移量 */
     virtual bool seek( offset_t offset );
     /** \brief 获得文件指针位置 */
     virtual size_t tell();
-    /** \brief 获取一行字符串,包括换行符 */
+    /** \brief 获取一行字符串，包括换行符。如果返回空串说明文件结束 */
     virtual String getLine();
     /** \brief 输出字符串 */
     virtual int puts( String const & str );
@@ -230,9 +230,9 @@ class WINUX_DLL File : public IFile
 protected:
     String _filename;
     FILE * _fp;
-    bool _autoload; // 当以读取模式打开时,是否自动载入数据到缓冲区
-    size_t _fileSize; // 文件的字节大小,这玩意和数据加载大小不一定相同
-    size_t _loadedSize; // 实际加载的字节大小,这玩意和文件大小不一定相同
+    bool _autoload; //!< 当以读取模式打开时，是否自动载入数据到缓冲区
+    size_t _fileSize; //!< 文件的字节大小，这和数据加载大小不一定相同
+    size_t _loadedSize; //!< 实际加载的字节大小，这和文件大小不一定相同
     Buffer _buf;
 
     void _loadData();
@@ -265,14 +265,14 @@ public:
 class WINUX_DLL BlockOutFile : public File
 {
 protected:
-    String _dirname;   ///< 目录名   path/to
-    String _basename;  ///< 文件名   filename.txt
-    String _filetitle; ///< 文件标题 filename
-    String _extname;   ///< 扩展名   .txt
-    long _fileno;      ///< 文件编号
+    String _dirname;   //!< 目录名   path/to
+    String _basename;  //!< 文件名   filename.txt
+    String _filetitle; //!< 文件标题 filename
+    String _extname;   //!< 扩展名   .txt
+    long _fileno;      //!< 文件编号
 
-    bool _isTextMode; ///< 是否文本模式
-    size_t _blockSize; ///< 块大小
+    bool _isTextMode;  //!< 是否文本模式
+    size_t _blockSize; //!< 块大小
 
 public:
     BlockOutFile( String const & filename, bool isTextMode = true, size_t blockSize = 1048576 );
@@ -280,7 +280,7 @@ public:
     bool nextBlock();
     virtual size_t write( void const * data, size_t size ) override;
     virtual size_t write( Buffer const & buf ) override;
-    int puts( String const & str );
+    virtual int puts( String const & str ) override;
 
     DISABLE_OBJECT_COPY(BlockOutFile)
 };
@@ -289,14 +289,14 @@ public:
 class WINUX_DLL BlockInFile : public File
 {
 protected:
-    String _dirname;   ///< 目录名   path/to
-    String _basename;  ///< 文件名   filename.txt
-    String _filetitle; ///< 文件标题 filename
-    String _extname;   ///< 扩展名   .txt
-    long _index;       ///< 文件索引
+    String _dirname;   //!< 目录名   path/to
+    String _basename;  //!< 文件名   filename.txt
+    String _filetitle; //!< 文件标题 filename
+    String _extname;   //!< 扩展名   .txt
+    long _index;       //!< 文件索引
 
-    bool _isTextMode;  ///< 是否文本模式
-    StringArray _blockFiles; ///< 要加载的分块文件
+    bool _isTextMode;  //!< 是否文本模式
+    StringArray _blockFiles; //!< 要加载的分块文件
 public:
     BlockInFile( String const & filename, bool isTextMode = true );
 

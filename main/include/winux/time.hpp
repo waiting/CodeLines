@@ -9,8 +9,8 @@ class WINUX_DLL DateTimeL
 public:
     struct Second
     {
-        uint64 value;
-        explicit Second( uint64 second ) : value(second)
+        time_t value;
+        explicit Second( time_t second ) : value(second)
         {
         }
     };
@@ -53,7 +53,7 @@ public:
     void setSecond( short second ) { _second = second; }
     void setMillisec( short millisec ) { _millisec = millisec; }
 
-    uint64 toUtcTime() const;
+    time_t toUtcTime() const;
     uint64 toUtcTimeMs() const;
 
     String toString() const;
@@ -81,11 +81,11 @@ private:
 WINUX_FUNC_DECL(std::ostream &) operator << ( std::ostream & o, DateTimeL const & dt );
 
 /** \brief 获取UTC时间毫秒数,UTC秒数可以直接除以1000,或者调用CRT的time(NULL) */
-WINUX_FUNC_DECL(uint64) GetUtcTimeMs();
+WINUX_FUNC_DECL(uint64) GetUtcTimeMs( void );
 /** \brief 获取UTC时间微秒数,UTC秒数可以直接除以1000000,或者调用CRT的time(NULL) */
-WINUX_FUNC_DECL(uint64) GetUtcTimeUs();
+WINUX_FUNC_DECL(uint64) GetUtcTimeUs( void );
 /** \brief 获取UTC时间秒数,或者调用CRT的time(NULL) */
-WINUX_FUNC_DECL(uint64) GetUtcTime();
+WINUX_FUNC_DECL(time_t) GetUtcTime( void );
 
 
 

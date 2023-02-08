@@ -11,12 +11,24 @@ namespace winux
     typedef pid_t HProcess;
 #endif
 
+#if defined(_UNICODE) || defined(UNICODE)
+    #define CommandLineToArgv CommandLineToArgvW
+#else
+    #define CommandLineToArgv CommandLineToArgvA
+#endif
+
 /** \brief 把命令行解析成Argv数组。不支持命令行& && | ||
  *
- *  \param cmd String const &
- *  \param argv StringArray *
- *  \return int 解析到的参数个数 */
-WINUX_FUNC_DECL(size_t) CommandLineToArgv( winux::String const & cmd, winux::StringArray * argv );
+ *  \param cmd 命令行，不支持命令行& && | ||
+ *  \param argv 输出解析到的参数
+ *  \return 解析到的参数个数 */
+WINUX_FUNC_DECL(size_t) CommandLineToArgvA( AnsiString const & cmd, AnsiStringArray * argv );
+/** \brief 把命令行解析成Argv数组。不支持命令行& && | ||
+ *
+ *  \param cmd 命令行，不支持命令行& && | ||
+ *  \param argv 输出解析到的参数
+ *  \return 解析到的参数个数 */
+WINUX_FUNC_DECL(size_t) CommandLineToArgvW( UnicodeString const & cmd, UnicodeStringArray * argv );
 
 /** \brief 新建子进程执行指定命令，并用管道重定向了标准设备
  *
@@ -88,52 +100,86 @@ public:
         Mixed const & desiredFlags,
         Mixed const & optionSymbols = "=,:"
     );
+
+    /** \brief 获取参数个数 */
     size_t getParamsCount() const { return _params.getCount(); }
+    /** \brief 获取选项个数 */
     size_t getOptionsCount() const { return _options.getCount(); }
+    /** \brief 获取旗标个数 */
     size_t getFlagsCount() const { return _flags.getCount(); }
+    /** \brief 获取值个数 */
     size_t getValuesCount() const { return _values.getCount(); }
 
+    /** \brief 是否有此参数 */
     bool hasParam( String const & name ) const { return _params.has(name); }
+    /** \brief 是否有此选项 */
     bool hasOption( String const & name ) const { return _options.has(name); }
+    /** \brief 是否有此旗标 */
     bool hasFlag( String const & name ) const { return _flags.has(name); }
+    /** \brief 是否有此值 */
     bool hasValue( String const & value ) const { return _values.has(value); }
 
+    /** \brief 获取指定名字的参数 */
     Mixed const & getParam( String const & name, Mixed const & defValue = "" ) const { return this->hasParam(name) ? _params[name] : defValue; }
+    /** \brief 获取指定名字的选项 */
     Mixed const & getOption( String const & name, Mixed const & defValue = "" ) const { return this->hasOption(name) ? _options[name] : defValue; }
-    Mixed const & getFlag( int i ) const { return _flags[i]; }
-    Mixed const & getValue( int i ) const { return _values[i]; }
+    /** \brief 获取指定索引的旗标 */
+    Mixed const & getFlag( size_t i ) const { return _flags[i]; }
+    /** \brief 获取指定索引的值 */
+    Mixed const & getValue( size_t i ) const { return _values[i]; }
 
-    size_t getParamIndexInArgv( String const & name ) const { return _paramIndexesInArgv.find(name) != _paramIndexesInArgv.end() ? _paramIndexesInArgv.at(name) : -1; }
-    size_t getOptionIndexInArgv( String const & name ) const { return _optionIndexesInArgv.find(name) != _optionIndexesInArgv.end() ? _optionIndexesInArgv.at(name) : -1; }
-    size_t getFlagIndexInArgv( String const & name ) const { return _flagIndexesInArgv.find(name) != _flagIndexesInArgv.end() ? _flagIndexesInArgv.at(name) : -1; }
-    size_t getValueIndexInArgv( String const & value ) const { return _valueIndexesInArgv.find(value) != _valueIndexesInArgv.end() ? _valueIndexesInArgv.at(value) : -1; }
+    /** \brief 获取指定参数在argv中的索引 */
+    size_t getParamIndexInArgv( String const & name ) const { return _paramIndexesInArgv.find(name) != _paramIndexesInArgv.end() ? _paramIndexesInArgv.at(name) : npos; }
+    /** \brief 获取指定选项在argv中的索引 */
+    size_t getOptionIndexInArgv( String const & name ) const { return _optionIndexesInArgv.find(name) != _optionIndexesInArgv.end() ? _optionIndexesInArgv.at(name) : npos; }
+    /** \brief 获取指定旗标在argv中的索引 */
+    size_t getFlagIndexInArgv( String const & name ) const { return _flagIndexesInArgv.find(name) != _flagIndexesInArgv.end() ? _flagIndexesInArgv.at(name) : npos; }
+    /** \brief 获取指定值在argv中的索引 */
+    size_t getValueIndexInArgv( String const & value ) const { return _valueIndexesInArgv.find(value) != _valueIndexesInArgv.end() ? _valueIndexesInArgv.at(value) : npos; }
 
+    /** \brief 获取全部参数 */
     Mixed & getParams() { return _params; }
+    /** \brief 获取全部选项 */
     Mixed & getOptions() { return _options; }
+    /** \brief 获取全部旗标 */
     Mixed & getFlags() { return _flags; }
+    /** \brief 获取全部值 */
     Mixed & getValues() { return _values; }
 
+    /** \brief 倾泻全部 */
+    Mixed dump() const
+    {
+        CommandLineVars * p = const_cast<CommandLineVars *>(this);
+        return $c{
+            { "params", p->getParams() },
+            { "options", p->getOptions() },
+            { "flags", p->getFlags() },
+            { "values", p->getValues() },
+        };
+    }
+
+    /** \brief 获取argc */
     int getArgc() const { return _argc; }
+    /** \brief 获取argv */
     char const ** getArgv() const { return _argv; }
+
 private:
-    static void __MixedAppendToStringArray( Mixed const & mx, StringArray * arr );
+    int _argc; // main()命令行参数个数
+    char const ** _argv; // main()命令行参数
 
-    int _argc;
-    char const ** _argv;
+    StringArray _desiredParams; // 要识别的参数名
+    StringArray _desiredOptions; // 要识别的选项名
+    StringArray _desiredFlags; // 要识别的旗标名
+    StringArray _optionSymbols; // 选项赋值符号
 
-    StringArray _desiredParams;
-    StringArray _desiredOptions;
-    StringArray _desiredFlags;
-    StringArray _optionSymbols;
-
-    Mixed _params;  ///< 参数Collection
-    std::map< String, size_t > _paramIndexesInArgv;    ///< 参数在argv中的索引
-    Mixed _options; ///< 选项Collection
-    std::map< String, size_t > _optionIndexesInArgv;   ///< 选项在argv中的索引
-    Mixed _flags;   ///< 旗标Array
-    std::map< String, size_t > _flagIndexesInArgv;     ///< 旗标在argv中的索引
-    Mixed _values;  ///< 值Array
-    std::map< String, size_t > _valueIndexesInArgv;    ///< 值在argv中的索引
+    Mixed _params;  // 参数Collection
+    std::map< String, size_t > _paramIndexesInArgv;    // 参数在argv中的索引
+    Mixed _options; // 选项Collection
+    std::map< String, size_t > _optionIndexesInArgv;   // 选项在argv中的索引
+    Mixed _flags;   // 旗标Array
+    std::map< String, size_t > _flagIndexesInArgv;     // 旗标在argv中的索引
+    Mixed _values;  // 值Array
+    std::map< String, size_t > _valueIndexesInArgv;    // 值在argv中的索引
 
     DISABLE_OBJECT_COPY(CommandLineVars)
 };

@@ -26,13 +26,13 @@ inline static bool IsDigit( unsigned ch )
     return ch >= '0' && ch <= '9';
 }
 
-// 是否为标识符合法字，包括美元符，不包括数字
+// 是否为标识符合法字。包括字母，包括下划线，包括美元符。不包括数字
 inline static bool IsWord( unsigned ch )
 {
     return ( ( ch | 0x20 ) >= 'a' && ( ch | 0x20 ) <= 'z' ) || ch == '_' || ch == '$' || ch > 127U;
 }
 
-// 是否为标识符合法字，不包括美元符，不包括数字
+// 是否为标识符合法字。包括字母，包括下划线。不包括美元符，不包括数字
 inline static bool IsWordNoDollar( unsigned ch )
 {
     return ( ( ch | 0x20 ) >= 'a' && ( ch | 0x20 ) <= 'z' ) || ch == '_' || ch > 127U;

@@ -10,8 +10,8 @@
 #include "smartptr.hpp"
 #include "filesys.hpp"
 #include "strings.hpp"
+#include "time.hpp"
 
-#include <fstream>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -109,13 +109,19 @@ inline static String::size_type __StrRFindDirSep( String const & str )
 WINUX_FUNC_IMPL(String) GetExecutablePath( void )
 {
     String path;
-    path.resize(512);
-#if defined(OS_WIN)
-    GetModuleFileName( NULL, &path[0], (DWORD)path.size() );
-#else
-    readlink( "/proc/self/exe", &path[0], path.size() );
-#endif
-    return path.c_str();
+    size_t n = 130;
+    ssize_t nGet;
+    do
+    {
+        n <<= 1;
+        path.resize(n);
+    #if defined(OS_WIN)
+        nGet = GetModuleFileName( NULL, &path[0], (DWORD)path.size() );
+    #else
+        nGet = readlink( "/proc/self/exe", &path[0], path.size() );
+    #endif
+    } while ( nGet == (ssize_t)path.size() );
+    return String( path.c_str(), nGet );
 }
 
 WINUX_FUNC_IMPL(String) FilePath( String const & fullPath, String * fileName )
@@ -211,12 +217,9 @@ WINUX_FUNC_IMPL(String) NormalizePath( String const & path )
 
 WINUX_FUNC_IMPL(String) RealPath( String const & path )
 {
-    String currWorkDir;
     if ( path.empty() )
     {
-        currWorkDir.resize(512);
-        _getcwd( &currWorkDir[0], sizeof(String::value_type) * 512 );
-        return currWorkDir.c_str();
+        return GetCurrentDir();
     }
     else
     {
@@ -224,9 +227,7 @@ WINUX_FUNC_IMPL(String) RealPath( String const & path )
         if ( path[0] == '/' || path[0] == '\\' ) // 是绝对路径，但windows上要确定逻辑盘符
         {
         #if defined(OS_WIN)
-            currWorkDir.resize(512);
-            _getcwd( &currWorkDir[0], sizeof(String::value_type) * 512 );
-            return NormalizePath( currWorkDir.substr( 0, 2 ) + path );
+            return NormalizePath( GetCurrentDir().substr( 0, 2 ) + path );
         #else
             return NormalizePath(path);
         #endif
@@ -237,9 +238,7 @@ WINUX_FUNC_IMPL(String) RealPath( String const & path )
         }
         else // 是相对路径，依据当前路径计算
         {
-            currWorkDir.resize(512);
-            _getcwd( &currWorkDir[0], sizeof(String::value_type) * 512 );
-            return NormalizePath( currWorkDir.c_str() + DirSep + path );
+            return NormalizePath( GetCurrentDir() + DirSep + path );
         }
     }
 }
@@ -286,17 +285,17 @@ WINUX_FUNC_IMPL(String) RealPathEx( String const & path, String const & workDirA
 
 WINUX_FUNC_IMPL(String) GetCurrentDir( void )
 {
-    String::value_type * p;
+    String::value_type const * p;
     String buf;
-    int size = 128;
+    int size = 130;
     do
     {
         size <<= 1;
-        buf.resize( size - 1 );
+        buf.resize(size);
         p = _tgetcwd( &buf[0], size );
     }
     while ( !p && errno == ERANGE );
-    return p ? p : TEXT("");
+    return p ? p : Literal<String::value_type>::emptyStr;
 }
 
 WINUX_FUNC_IMPL(bool) SetCurrentDir( String const & path )
@@ -315,7 +314,7 @@ WINUX_FUNC_IMPL(bool) IsDir( String const & path )
 #endif
 }
 
-WINUX_FUNC_IMPL(bool) DetectPath( String const & path, bool * isDir /*= NULL */ )
+WINUX_FUNC_IMPL(bool) DetectPath( String const & path, bool * isDir )
 {
     ASSIGN_PTR(isDir) = false;
     struct _stat st = { 0 };
@@ -343,42 +342,42 @@ WINUX_FUNC_IMPL(uint64) FileSize64( String const & filename )
     return st.st_size;
 }
 
-WINUX_FUNC_IMPL(bool) FileTime( String const & filename, ulong * ctime, ulong * mtime, ulong * atime )
+WINUX_FUNC_IMPL(bool) FileTime( String const & filename, time_t * ctime, time_t * mtime, time_t * atime )
 {
     struct _stat st = { 0 };
     bool r = 0 == _stat( filename.c_str(), &st );
-    ASSIGN_PTR(ctime) = (ulong)st.st_ctime;
-    ASSIGN_PTR(mtime) = (ulong)st.st_mtime;
-    ASSIGN_PTR(atime) = (ulong)st.st_atime;
+    ASSIGN_PTR(ctime) = st.st_ctime;
+    ASSIGN_PTR(mtime) = st.st_mtime;
+    ASSIGN_PTR(atime) = st.st_atime;
     return r;
 }
 
-WINUX_FUNC_IMPL(ulong) FileCTime( String const & filename )
+WINUX_FUNC_IMPL(time_t) FileCTime( String const & filename )
 {
     struct _stat st = { 0 };
     _stat( filename.c_str(), &st );
-    return (ulong)st.st_ctime;
+    return st.st_ctime;
 }
 
-WINUX_FUNC_IMPL(ulong) FileMTime( String const & filename )
+WINUX_FUNC_IMPL(time_t) FileMTime( String const & filename )
 {
     struct _stat st = { 0 };
     _stat( filename.c_str(), &st );
-    return (ulong)st.st_mtime;
+    return st.st_mtime;
 }
 
-WINUX_FUNC_IMPL(ulong) FileATime( String const & filename )
+WINUX_FUNC_IMPL(time_t) FileATime( String const & filename )
 {
     struct _stat st = { 0 };
     _stat( filename.c_str(), &st );
-    return (ulong)st.st_atime;
+    return st.st_atime;
 }
 
-WINUX_FUNC_IMPL(bool) FileTouch( String const & filename, ulong time, ulong atime )
+WINUX_FUNC_IMPL(bool) FileTouch( String const & filename, time_t time, time_t atime )
 {
     struct _utimbuf tbuf;
-    time = ( time == (ulong)-1 ? (ulong)::time(NULL) : time );
-    atime = ( atime == (ulong)-1 ? time : atime );
+    time = ( time == (time_t)-1 ? GetUtcTime() : time );
+    atime = ( atime == (time_t)-1 ? time : atime );
     tbuf.modtime = time;
     tbuf.actime = atime;
 
@@ -390,7 +389,7 @@ WINUX_FUNC_IMPL(String) PathWithSep( String const & path )
     String r;
     if ( !path.empty() )
     {
-        auto ch = path[path.length() - 1];
+        String::value_type ch = path[path.length() - 1];
         if ( ch != '\\' && ch != '/' ) // 末尾不是分隔符
         {
             r = path + DirSep;
@@ -485,9 +484,9 @@ WINUX_FUNC_IMPL(void) FolderData( String const & path, StringArray * fileArr, St
     }
 }
 
-WINUX_FUNC_IMPL(ulong) EnumFiles( String const & path, Mixed const & ext, StringArray * arrFiles, bool isRecursive )
+WINUX_FUNC_IMPL(size_t) EnumFiles( String const & path, Mixed const & ext, StringArray * arrFiles, bool isRecursive )
 {
-    ulong filesCount = 0;
+    size_t filesCount = 0;
     StringArray files, dirs, exts;
     StringArray::const_iterator it;
     FolderData( path, &files, &dirs );
@@ -522,9 +521,9 @@ WINUX_FUNC_IMPL(ulong) EnumFiles( String const & path, Mixed const & ext, String
     return filesCount;
 }
 
-WINUX_FUNC_IMPL(ulong) CommonDelete( String const & path )
+WINUX_FUNC_IMPL(size_t) CommonDelete( String const & path )
 {
-    ulong deletedCount = 0;
+    size_t deletedCount = 0;
     if ( IsDir(path) )
     {
         StringArray files, dirs;
@@ -725,22 +724,22 @@ WINUX_FUNC_IMPL(void) WriteLog( String const & s )
 {
     String exeFile;
     String exePath = FilePath( GetExecutablePath(), &exeFile );
-    std::ofstream out( ( exePath + DirSep + FileTitle(exeFile) + ".log" ).c_str(), std::ios_base::out | std::ios_base::app );
-    //_getpid();
-    time_t tt = time(NULL);
+    File out( exePath + DirSep + FileTitle(exeFile) + ".log", "at" );
+    time_t tt = GetUtcTime();
     struct tm * t = gmtime(&tt);
     char sz[32] = "";
     strftime( sz, 32, "%a, %d %b %Y %H:%M:%S GMT", t );
-
-    out << Format( "[pid:%d]", getpid() ) << sz << " - " << AddCSlashes(s) << std::endl;
+    String log;
+    StringWriter(&log) << Format( "[pid:%d]", getpid() ) << sz << " - \"" << AddCSlashes(s) << "\"" << std::endl;
+    out.puts(log);
 }
 
 WINUX_FUNC_IMPL(void) WriteBinLog( void const * data, size_t size )
 {
     String exeFile;
     String exePath = FilePath( GetExecutablePath(), &exeFile );
-    std::ofstream out( ( exePath + DirSep + FileTitle(exeFile) + ".binlog" ).c_str(), std::ios_base::out | std::ios_base::binary | std::ios_base::app );
-    out.write( (char const *)data, size );
+    File out( exePath + DirSep + FileTitle(exeFile) + ".binlog", "ab" );
+    out.write( data, size );
 }
 
 
@@ -1013,8 +1012,7 @@ winux::String File::getLine()
 
 int File::puts( String const & str )
 {
-    assert( _fp != NULL );
-    return fputs( str.c_str(), _fp );
+    return (int)this->write( str.c_str(), str.length() * sizeof(str[0]) );
 }
 
 bool File::eof()

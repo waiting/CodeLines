@@ -15,10 +15,18 @@ namespace winux
 
 #define LITERAL_ITEM_LIST( ty, pref ) \
     LITERAL_ITEM_SC(ty, A, pref, "A") \
+    LITERAL_ITEM_SC(ty, B, pref, "B") \
+    LITERAL_ITEM_SC(ty, C, pref, "C") \
+    LITERAL_ITEM_SC(ty, D, pref, "D") \
+    LITERAL_ITEM_SC(ty, E, pref, "E") \
+    LITERAL_ITEM_SC(ty, F, pref, "F") \
     LITERAL_ITEM_SC(ty, X, pref, "X") \
     LITERAL_ITEM_SC(ty, Z, pref, "Z") \
     LITERAL_ITEM_SC(ty, a, pref, "a") \
     LITERAL_ITEM_SC(ty, b, pref, "b") \
+    LITERAL_ITEM_SC(ty, c, pref, "c") \
+    LITERAL_ITEM_SC(ty, d, pref, "d") \
+    LITERAL_ITEM_SC(ty, e, pref, "e") \
     LITERAL_ITEM_SC(ty, f, pref, "f") \
     LITERAL_ITEM_SC(ty, n, pref, "n") \
     LITERAL_ITEM_SC(ty, r, pref, "r") \
@@ -44,16 +52,23 @@ namespace winux
     LITERAL_ITEM_SC(ty, vt, pref, "\v") \
     LITERAL_ITEM_SC(ty, ff, pref, "\f") \
     LITERAL_ITEM_SC(ty, cr, pref, "\r") \
+    LITERAL_ITEM_S(ty, empty, pref, "") \
     LITERAL_ITEM_SC(ty, space, pref, " ") \
     LITERAL_ITEM_SC(ty, under, pref, "_") \
     LITERAL_ITEM_SC(ty, dollar, pref, "$") \
     LITERAL_ITEM_SC(ty, slash, pref, "\\") \
+    LITERAL_ITEM_SC(ty, divide, pref, "/") \
     LITERAL_ITEM_SC(ty, positive, pref, "+") \
     LITERAL_ITEM_SC(ty, negative, pref, "-") \
-    LITERAL_ITEM_SC(ty, dblquote, pref, "\"") \
-    LITERAL_ITEM_SC(ty, quote, pref, "\'") \
+    LITERAL_ITEM_SC(ty, quote, pref, "\"") \
+    LITERAL_ITEM_SC(ty, apos, pref, "\'") \
     LITERAL_ITEM_SC(ty, sharp, pref, "#") \
-    LITERAL_ITEM_S(ty, empty, pref, "") \
+    LITERAL_ITEM_SC(ty, caret, pref, "^") \
+    LITERAL_ITEM_SC(ty, pipe, pref, "|") \
+    LITERAL_ITEM_SC(ty, amp, pref, "&") \
+    LITERAL_ITEM_SC(ty, lt, pref, "<") \
+    LITERAL_ITEM_SC(ty, gt, pref, ">") \
+    LITERAL_ITEM_SC(ty, dbldivide, pref, "//") \
     LITERAL_ITEM_S(ty, crlf, pref, "\r\n") \
     LITERAL_ITEM_S(ty, slash_a, pref, "\\a") \
     LITERAL_ITEM_S(ty, slash_b, pref, "\\b") \
@@ -66,7 +81,10 @@ namespace winux
     LITERAL_ITEM_S(ty, cslashes, pref, "\n\r\t\v\a\\\'\"")
 
 template < typename _ChTy >
-struct Literal;
+struct Literal
+{
+    LITERAL_ITEM_LIST( char, );
+};
 
 template <>
 struct Literal<char>
@@ -91,6 +109,64 @@ struct Literal<char32_t>
 {
     LITERAL_ITEM_LIST( char32_t, U );
 };
+
+#if defined(_UNICODE) || defined(UNICODE)
+    #define StrSplit StrSplitW
+    #define StrSplit2 StrSplit2W
+    #define StrJoin StrJoinW
+    #define StrJoinEx StrJoinExW
+    #define StrInsert StrInsertW
+    #define StrMakeReplace StrMakeReplaceW
+    #define StrTrim StrTrimW
+    #define StrMakeUpper StrMakeUpperW
+    #define StrUpper StrUpperW
+    #define StrMakeLower StrMakeLowerW
+    #define StrLower StrLowerW
+    #define StrMultiple StrMultipleW
+    #define StrSubtract StrSubtractW
+    #define StrToXq StrToXqW
+    #define StrToInt64 StrToInt64W
+    #define StrToUint64 StrToUint64W
+    #define AddSlashes AddSlashesW
+    #define AddCSlashes AddCSlashesW
+    #define StripSlashes StripSlashesW
+    #define StripCSlashes StripCSlashesW
+    #define AddQuotes AddQuotesW
+    #define StrGetLine StrGetLineW
+    #define CollateIdentifierToString CollateIdentifierToStringW
+    #define CollateIdentifierToArray CollateIdentifierToArrayW
+    #define FormatExV FormatExVW
+    #define FormatEx FormatExW
+    #define Format FormatW
+#else
+    #define StrSplit StrSplitA
+    #define StrSplit2 StrSplit2A
+    #define StrJoin StrJoinA
+    #define StrJoinEx StrJoinExA
+    #define StrInsert StrInsertA
+    #define StrMakeReplace StrMakeReplaceA
+    #define StrTrim StrTrimA
+    #define StrMakeUpper StrMakeUpperA
+    #define StrUpper StrUpperA
+    #define StrMakeLower StrMakeLowerA
+    #define StrLower StrLowerA
+    #define StrMultiple StrMultipleA
+    #define StrSubtract StrSubtractA
+    #define StrToXq StrToXqA
+    #define StrToInt64 StrToInt64A
+    #define StrToUint64 StrToUint64A
+    #define AddSlashes AddSlashesA
+    #define AddCSlashes AddCSlashesA
+    #define StripSlashes StripSlashesA
+    #define StripCSlashes StripCSlashesA
+    #define AddQuotes AddQuotesA
+    #define StrGetLine StrGetLineA
+    #define CollateIdentifierToString CollateIdentifierToStringA
+    #define CollateIdentifierToArray CollateIdentifierToArrayA
+    #define FormatExV FormatExVA
+    #define FormatEx FormatExA
+    #define Format FormatA
+#endif
 
 /** \brief 字符串分割
  *
@@ -191,8 +267,8 @@ WINUX_FUNC_DECL(UnicodeString) StripSlashesW( UnicodeString const & str, Unicode
 inline UnicodeString StripCSlashesW( UnicodeString const & str ) { return StripSlashesW( str, Literal<UnicodeString::value_type>::cslashesStr ); }
 
 /** \brief double引号 */
-WINUX_FUNC_DECL(AnsiString) AddQuotesA( AnsiString const & str, AnsiString::value_type quote = Literal<AnsiString::value_type>::dblquoteChar );
-WINUX_FUNC_DECL(UnicodeString) AddQuotesW( UnicodeString const & str, UnicodeString::value_type quote = Literal<UnicodeString::value_type>::dblquoteChar );
+WINUX_FUNC_DECL(AnsiString) AddQuotesA( AnsiString const & str, AnsiString::value_type quote = Literal<AnsiString::value_type>::quoteChar );
+WINUX_FUNC_DECL(UnicodeString) AddQuotesW( UnicodeString const & str, UnicodeString::value_type quote = Literal<UnicodeString::value_type>::quoteChar );
 
 /** \brief 获取字符串中的一行,支持unix，windows，mac平台的行分隔方式\n
  *  line 不包含换行符，i 指示起始位置，并获得处理到哪个位置。
@@ -227,64 +303,6 @@ WINUX_FUNC_DECL(UnicodeString) CollateIdentifierToStringW( UnicodeString const &
 /** \brief 整理标识符为单词数组 */
 WINUX_FUNC_DECL(AnsiStringArray) CollateIdentifierToArrayA( AnsiString const & identifier, winux::uint flags = wordFirstCharUpper );
 WINUX_FUNC_DECL(UnicodeStringArray) CollateIdentifierToArrayW( UnicodeString const & identifier, winux::uint flags = wordFirstCharUpper );
-
-#if defined(_UNICODE) || defined(UNICODE)
-    #define StrSplit StrSplitW
-    #define StrSplit2 StrSplit2W
-    #define StrJoin StrJoinW
-    #define StrJoinEx StrJoinExW
-    #define StrInsert StrInsertW
-    #define StrMakeReplace StrMakeReplaceW
-    #define StrTrim StrTrimW
-    #define StrMakeUpper StrMakeUpperW
-    #define StrUpper StrUpperW
-    #define StrMakeLower StrMakeLowerW
-    #define StrLower StrLowerW
-    #define StrMultiple StrMultipleW
-    #define StrSubtract StrSubtractW
-    #define StrToXq StrToXqW
-    #define StrToInt64 StrToInt64W
-    #define StrToUint64 StrToUint64W
-    #define AddSlashes AddSlashesW
-    #define AddCSlashes AddCSlashesW
-    #define StripSlashes StripSlashesW
-    #define StripCSlashes StripCSlashesW
-    #define AddQuotes AddQuotesW
-    #define StrGetLine StrGetLineW
-    #define CollateIdentifierToString CollateIdentifierToStringW
-    #define CollateIdentifierToArray CollateIdentifierToArrayW
-    #define FormatExV FormatExVW
-    #define FormatEx FormatExW
-    #define Format FormatW
-#else
-    #define StrSplit StrSplitA
-    #define StrSplit2 StrSplit2A
-    #define StrJoin StrJoinA
-    #define StrJoinEx StrJoinExA
-    #define StrInsert StrInsertA
-    #define StrMakeReplace StrMakeReplaceA
-    #define StrTrim StrTrimA
-    #define StrMakeUpper StrMakeUpperA
-    #define StrUpper StrUpperA
-    #define StrMakeLower StrMakeLowerA
-    #define StrLower StrLowerA
-    #define StrMultiple StrMultipleA
-    #define StrSubtract StrSubtractA
-    #define StrToXq StrToXqA
-    #define StrToInt64 StrToInt64A
-    #define StrToUint64 StrToUint64A
-    #define AddSlashes AddSlashesA
-    #define AddCSlashes AddCSlashesA
-    #define StripSlashes StripSlashesA
-    #define StripCSlashes StripCSlashesA
-    #define AddQuotes AddQuotesA
-    #define StrGetLine StrGetLineA
-    #define CollateIdentifierToString CollateIdentifierToStringA
-    #define CollateIdentifierToArray CollateIdentifierToArrayA
-    #define FormatExV FormatExVA
-    #define FormatEx FormatExA
-    #define Format FormatA
-#endif
 
 /** \brief KMP匹配算法 求子串next值 */
 template < typename _ChTy, typename _IndexType >

@@ -10,6 +10,7 @@
 #include "system.hpp"
 #include "console.hpp"
 #include "archives.hpp"
+#include "compress.hpp"
 #include "md5.hpp"
 #include "encoding.hpp"
 #include "threads.hpp"

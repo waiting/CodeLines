@@ -23,16 +23,17 @@ namespace winux
 {
 #include "is_x_funcs.inl"
 
-static void __ParseCommandLineString( winux::String const & cmd, winux::String::size_type * pI, winux::String * str )
+template < typename _ChTy >
+static void Impl_ParseCommandLineString( XString<_ChTy> const & cmd, size_t * pI, XString<_ChTy> * str )
 {
-    winux::String::size_type & i = *pI;
-    winux::String::value_type quote = cmd[i];
+    size_t & i = *pI;
+    _ChTy quote = cmd[i];
     i++; // skip left "
 
     winux::uint slashes = 0;
     while ( i < cmd.length() )
     {
-        winux::String::value_type ch = cmd[i];
+        _ChTy ch = cmd[i];
 
         if ( ch == quote )
         {
@@ -40,7 +41,7 @@ static void __ParseCommandLineString( winux::String const & cmd, winux::String::
             {
                 if ( slashes > 1 )
                 {
-                    *str += winux::String( slashes / 2, '\\' );
+                    *str += XString<_ChTy>( slashes / 2, Literal<_ChTy>::slashChar );
                 }
                 slashes = 0;
                 *str += ch;
@@ -50,14 +51,14 @@ static void __ParseCommandLineString( winux::String const & cmd, winux::String::
             {
                 if ( slashes > 0 )
                 {
-                    *str += winux::String( slashes / 2, '\\' );
+                    *str += XString<_ChTy>( slashes / 2, Literal<_ChTy>::slashChar );
                 }
                 slashes = 0;
                 i++; // skip right "
                 break;
             }
         }
-        else if ( ch == '\\' )
+        else if ( ch == Literal<_ChTy>::slashChar )
         {
             slashes++;
             i++;
@@ -66,7 +67,7 @@ static void __ParseCommandLineString( winux::String const & cmd, winux::String::
         {
             if ( slashes )
             {
-                *str += winux::String( slashes, '\\' );
+                *str += XString<_ChTy>( slashes, Literal<_ChTy>::slashChar );
                 slashes = 0;
             }
             *str += ch;
@@ -75,15 +76,15 @@ static void __ParseCommandLineString( winux::String const & cmd, winux::String::
     }
 }
 
-WINUX_FUNC_IMPL(size_t) CommandLineToArgv( winux::String const & cmd, winux::StringArray * argv )
+template < typename _ChTy >
+size_t Impl_CommandLineToArgv( XString<_ChTy> const & cmd, XStringArray<_ChTy> * argv )
 {
-    winux::String::size_type i;
-    i = 0;
-    winux::String arg;
+    size_t i = 0;
     winux::uint slashes = 0;
+    XString<_ChTy> arg;
     while ( i < cmd.length() )
     {
-        winux::String::value_type ch = cmd[i];
+        _ChTy ch = cmd[i];
         if ( IsSpace(ch) )
         {
             i++;
@@ -91,25 +92,32 @@ WINUX_FUNC_IMPL(size_t) CommandLineToArgv( winux::String const & cmd, winux::Str
 
             if ( slashes )
             {
-                arg += winux::String( slashes, '\\' );
+                arg += XString<_ChTy>( slashes, Literal<_ChTy>::slashChar );
                 slashes = 0;
             }
             if ( !arg.empty() ) argv->push_back(arg);
             arg.clear();
         }
-        else if ( ch == '^' )
+        else if ( ch == Literal<_ChTy>::caretChar )
         {
             i++;
-            if ( i < cmd.length() && ( cmd[i] == '^' || cmd[i] == '|' ||  cmd[i] == '&' ||  cmd[i] == '<' ||  cmd[i] == '>' ) )
+            if ( i < cmd.length() && (
+                    cmd[i] == Literal<_ChTy>::caretChar ||
+                    cmd[i] == Literal<_ChTy>::pipeChar ||
+                    cmd[i] == Literal<_ChTy>::ampChar ||
+                    cmd[i] == Literal<_ChTy>::ltChar ||
+                    cmd[i] == Literal<_ChTy>::gtChar
+                )
+            )
             {
                 arg += cmd[i];
                 i++;
             }
         }
         else if (
-            ch == '\"'
+            ch == Literal<_ChTy>::quoteChar
         #if !defined(OS_WIN)
-            || ch == '\''
+            || ch == Literal<_ChTy>::aposChar
         #endif
         )
         {
@@ -117,7 +125,7 @@ WINUX_FUNC_IMPL(size_t) CommandLineToArgv( winux::String const & cmd, winux::Str
             {
                 if ( slashes > 1 )
                 {
-                    arg += winux::String( slashes / 2, '\\' );
+                    arg += XString<_ChTy>( slashes / 2, Literal<_ChTy>::slashChar );
                 }
                 slashes = 0;
                 arg += ch;
@@ -127,14 +135,14 @@ WINUX_FUNC_IMPL(size_t) CommandLineToArgv( winux::String const & cmd, winux::Str
             {
                 if ( slashes > 0 )
                 {
-                    arg += winux::String( slashes / 2, '\\' );
+                    arg += XString<_ChTy>( slashes / 2, Literal<_ChTy>::slashChar );
                 }
                 slashes = 0;
                 // 执行字符串解析
-                __ParseCommandLineString( cmd, &i, &arg );
+                Impl_ParseCommandLineString( cmd, &i, &arg );
             }
         }
-        else if ( ch == '\\' )
+        else if ( ch == Literal<_ChTy>::slashChar )
         {
             slashes++;
             i++;
@@ -143,7 +151,7 @@ WINUX_FUNC_IMPL(size_t) CommandLineToArgv( winux::String const & cmd, winux::Str
         {
             if ( slashes )
             {
-                arg += winux::String( slashes, '\\' );
+                arg += XString<_ChTy>( slashes, Literal<_ChTy>::slashChar );
                 slashes = 0;
             }
             arg += ch;
@@ -155,13 +163,23 @@ WINUX_FUNC_IMPL(size_t) CommandLineToArgv( winux::String const & cmd, winux::Str
     {
         if ( slashes )
         {
-            arg += winux::String( slashes, '\\' );
+            arg += XString<_ChTy>( slashes, Literal<_ChTy>::slashChar );
             slashes = 0;
         }
         if ( !arg.empty() ) argv->push_back(arg);
     }
 
     return argv->size();
+}
+
+WINUX_FUNC_IMPL(size_t) CommandLineToArgvA( AnsiString const & cmd, AnsiStringArray * argv )
+{
+    return Impl_CommandLineToArgv( cmd, argv );
+}
+
+WINUX_FUNC_IMPL(size_t) CommandLineToArgvW( UnicodeString const & cmd, UnicodeStringArray * argv )
+{
+    return Impl_CommandLineToArgv( cmd, argv );
 }
 
 #if defined(OS_WIN)
@@ -579,8 +597,9 @@ WINUX_FUNC_IMPL(winux::String) GetExec(
 
 #endif
 
-// class CommandLineVars ------------------------------------------------------------------
-void CommandLineVars::__MixedAppendToStringArray( Mixed const & mx, StringArray * arr )
+// ----------------------------------------------------------------------------------------
+
+inline static void __MixedAppendToStringArray( Mixed const & mx, StringArray * arr )
 {
     if ( mx.isArray() )
     {
@@ -612,13 +631,72 @@ void CommandLineVars::__MixedAppendToStringArray( Mixed const & mx, StringArray 
     }
 }
 
-CommandLineVars::CommandLineVars( int argc, char const ** argv, Mixed const & desiredParams, Mixed const & desiredOptions, Mixed const & desiredFlags, Mixed const & optionSymbols /*= "=,:" */ )
+inline static size_t __ObtainPrefixAndName( String const & str, String * prefix, String * name )
 {
-    _argc = argc;
-    _argv = argv;
+    size_t len = 0, i = 0;
+    while ( i < str.length() )
+    {
+        if ( IsWordNoDollar(str[i]) || IsDigit(str[i]) )
+        {
+            break;
+        }
+        else
+        {
+            len++;
+        }
+        i++;
+    }
+
+    *prefix = str.substr( 0, len );
+    *name = str.substr(len);
+
+    return len;
+}
+
+// 通过要解析的旗标获取前缀和单参数多旗标串
+inline static void __ObtainFlagPrefixAndFlagNameListByDesiredFlags( StringArray const & desiredFlags, String * flagPrefix, String * flagNameList )
+{
+    std::map< String, size_t > prefixs;
+    std::map< String, String > nameLists;
+    for ( auto && desiredFlag : desiredFlags )
+    {
+        String prefix, name;
+        __ObtainPrefixAndName( desiredFlag, &prefix, &name );
+
+        if ( name.length() == 1 )
+        {
+            prefixs[prefix]++;
+            nameLists[prefix] += name;
+        }
+    }
+
+    size_t c = 0;
+    String cur;
+    for ( auto && pr : prefixs )
+    {
+        if ( pr.second > c )
+        {
+            c = pr.second;
+            cur = pr.first;
+        }
+    }
+    *flagPrefix = cur;
+    *flagNameList = nameLists[cur];
+}
+
+// class CommandLineVars ------------------------------------------------------------------
+CommandLineVars::CommandLineVars( int argc, char const ** argv, Mixed const & desiredParams, Mixed const & desiredOptions, Mixed const & desiredFlags, Mixed const & optionSymbols /*= "=,:" */ ) :
+    _argc(argc),
+    _argv(argv)
+{
     __MixedAppendToStringArray( desiredParams, &_desiredParams );
     __MixedAppendToStringArray( desiredOptions, &_desiredOptions );
+
+    String flagPrefix;
+    String flagNameList;
     __MixedAppendToStringArray( desiredFlags, &_desiredFlags );
+    __ObtainFlagPrefixAndFlagNameListByDesiredFlags( _desiredFlags, &flagPrefix, &flagNameList );
+
     __MixedAppendToStringArray( optionSymbols, &_optionSymbols );
 
     _params.createCollection();
@@ -628,77 +706,119 @@ CommandLineVars::CommandLineVars( int argc, char const ** argv, Mixed const & de
 
     for ( int i = 1; i < argc; ++i )
     {
-        String args = argv[i];
-        bool isJudged = false;//是否已经判断属于何种变量
+        String arg = argv[i];
+        bool isJudged = false; // 是否已经判断属于何种变量
 
-        // Params
-        for ( size_t iDesiredParam = 0; !isJudged && iDesiredParam < _desiredParams.size(); ++iDesiredParam )
-        {
-            if ( args == _desiredParams[iDesiredParam] )
-            {
-                isJudged = true;
-
-                _paramIndexesInArgv[_desiredParams[iDesiredParam]] = i;
-                //找到一个参数，下一个argv[i]就是参数值
-                i++;
-                if ( i < argc )
-                {
-                    _params[_desiredParams[iDesiredParam]] = argv[i];
-                }
-                else //已经是最后一个，参数值只好认为是空
-                {
-                    _params[_desiredParams[iDesiredParam]] = "";
-                }
-            }
-        }
-
-        // Options
-        for ( size_t iDesiredOption = 0; !isJudged && iDesiredOption < _desiredOptions.size(); ++iDesiredOption )
-        {
-            if ( args.length() < _desiredOptions[iDesiredOption].length() )
-                continue;
-            MultiMatch mmFind( _optionSymbols, NULL );
-            MultiMatch::MatchResult mr = mmFind.search(args);
-            String optionName, optionVal;
-            if ( mr.pos != -1 )
-            {
-                optionName = args.substr( 0, mr.pos );
-                optionVal = args.substr( mr.pos + mmFind.getMatchItem(mr.item).length() );
-            }
-            else
-            {
-                optionName = args;
-                optionVal = "";
-            }
-
-            if ( optionName == _desiredOptions[iDesiredOption] )
-            {
-                isJudged = true;
-
-                _optionIndexesInArgv[_desiredOptions[iDesiredOption]] = i;
-                //找到一个option
-                _options[optionName] = optionVal;
-            }
-        }
-
-        // Flags
-        for ( size_t iDesiredFlag = 0; !isJudged && iDesiredFlag < _desiredFlags.size(); ++iDesiredFlag )
-        {
-            if ( args == _desiredFlags[iDesiredFlag] )
-            {
-                isJudged = true;
-
-                _flagIndexesInArgv[_desiredFlags[iDesiredFlag]] = i;
-                //找到一个flag
-                _flags.add(_desiredFlags[iDesiredFlag]);
-            }
-        }
-
-        // Values
         if ( !isJudged )
         {
-            _valueIndexesInArgv[args] = i;
-            _values.add(args);
+            // Params
+            for ( size_t iDesiredParam = 0; !isJudged && iDesiredParam < _desiredParams.size(); ++iDesiredParam )
+            {
+                if ( arg == _desiredParams[iDesiredParam] )
+                {
+                    isJudged = true;
+
+                    _paramIndexesInArgv[_desiredParams[iDesiredParam]] = i;
+                    // 找到一个参数，下一个argv[i]就是参数值
+                    i++;
+                    if ( i < argc )
+                    {
+                        _params[_desiredParams[iDesiredParam]] = argv[i];
+                    }
+                    else // 已经是最后一个，参数值只好认为是空
+                    {
+                        _params[_desiredParams[iDesiredParam]] = "";
+                    }
+                }
+            }
+        }
+
+        if ( !isJudged )
+        {
+            // Options
+            for ( size_t iDesiredOption = 0; !isJudged && iDesiredOption < _desiredOptions.size(); ++iDesiredOption )
+            {
+                if ( arg.length() < _desiredOptions[iDesiredOption].length() )
+                    continue;
+                MultiMatch mmFind( _optionSymbols, NULL );
+                MultiMatch::MatchResult mr = mmFind.search(arg);
+                String optionName, optionVal;
+                if ( mr.pos != -1 )
+                {
+                    optionName = arg.substr( 0, mr.pos );
+                    optionVal = arg.substr( mr.pos + mmFind.getMatchItem(mr.item).length() );
+                }
+                else
+                {
+                    optionName = arg;
+                    optionVal = "";
+                }
+
+                if ( optionName == _desiredOptions[iDesiredOption] )
+                {
+                    isJudged = true;
+
+                    _optionIndexesInArgv[_desiredOptions[iDesiredOption]] = i;
+                    // 找到一个option
+                    _options[optionName] = optionVal;
+                }
+            }
+        }
+
+        if ( !isJudged )
+        {
+            // Flags
+            for ( size_t iDesiredFlag = 0; !isJudged && iDesiredFlag < _desiredFlags.size(); ++iDesiredFlag )
+            {
+                if ( arg == _desiredFlags[iDesiredFlag] )
+                {
+                    isJudged = true;
+
+                    _flagIndexesInArgv[_desiredFlags[iDesiredFlag]] = i;
+                    // 找到一个flag
+                    _flags.addUnique(_desiredFlags[iDesiredFlag]);
+                }
+            }
+        }
+
+        if ( !isJudged )
+        {
+            size_t noMatchCount = 0;
+            // multi flags
+            if ( !flagPrefix.empty() && !flagNameList.empty() )
+            {
+                if ( arg.find(flagPrefix) == 0 ) // 参数前缀和旗标前缀一样
+                {
+                    for ( auto && ch : arg.substr( flagPrefix.length() ) )
+                    {
+                        if ( flagNameList.find(ch) != npos )
+                        {
+                            isJudged = true;
+
+                            String flag = flagPrefix + ch;
+                            _flagIndexesInArgv[flag] = i;
+                            // 找到一个flag
+                            _flags.addUnique(flag);
+                        }
+                        else
+                        {
+                            noMatchCount++;
+                        }
+                    }
+                }
+            }
+
+            if ( isJudged && noMatchCount > 0 )
+            {
+                isJudged = false;
+            }
+        }
+
+        if ( !isJudged )
+        {
+            // Values
+            _valueIndexesInArgv[arg] = i;
+            _values.add(arg);
         }
     }
 }
@@ -873,7 +993,7 @@ String DllLoader::GetModulePath( void * funcInModule )
     MEMORY_BASIC_INFORMATION mbi;
     HMODULE hMod = ( ( ::VirtualQuery( funcInModule, &mbi, sizeof(mbi) ) != 0 ) ? (HMODULE)mbi.AllocationBase : NULL );
 
-    AnsiString sz;
+    String sz;
     DWORD dwSize = MAX_PATH >> 1;
     DWORD dwGet = 0;
     //DWORD dwError;
@@ -885,7 +1005,7 @@ String DllLoader::GetModulePath( void * funcInModule )
         //dwError = GetLastError();
     }
     while ( dwSize == dwGet /*&& dwError == ERROR_INSUFFICIENT_BUFFER*/ ); // 由于WinXP的错误码与其他的Win不同，所以这里不判断错误码了。只要接收大小和空间大小一样，即视为空间不足。
-    return AnsiString( sz.c_str(), dwGet );
+    return String( sz.c_str(), dwGet );
 #else
     Dl_info dlinfo = { 0 };
     int ret = 0;

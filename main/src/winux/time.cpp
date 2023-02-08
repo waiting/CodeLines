@@ -89,7 +89,7 @@ DateTimeL::DateTimeL( String const & dateTimeStr ) : _millisec(0), _second(0), _
     _yday = t.tm_yday + 1;
 }
 
-uint64 DateTimeL::toUtcTime() const
+time_t DateTimeL::toUtcTime() const
 {
     struct tm t = { 0 };
     t.tm_year = _year - 1900;
@@ -98,7 +98,7 @@ uint64 DateTimeL::toUtcTime() const
     t.tm_hour = _hour;
     t.tm_min = _minute;
     t.tm_sec = _second;
-    return (uint64)mktime(&t);
+    return mktime(&t);
 }
 
 uint64 DateTimeL::toUtcTimeMs() const
@@ -200,7 +200,7 @@ WINUX_FUNC_IMPL(uint64) GetUtcTimeUs( void )
 
 #else
 
-WINUX_FUNC_IMPL(uint64) GetUtcTimeMs()
+WINUX_FUNC_IMPL(uint64) GetUtcTimeMs( void )
 {
     uint64 nMillSec = 0;
     struct timeval tv;
@@ -210,7 +210,7 @@ WINUX_FUNC_IMPL(uint64) GetUtcTimeMs()
     return nMillSec;
 }
 
-WINUX_FUNC_IMPL(uint64) GetUtcTimeUs()
+WINUX_FUNC_IMPL(uint64) GetUtcTimeUs( void )
 {
     uint64 nMicroSec = 0;
     struct timeval tv;
@@ -222,7 +222,7 @@ WINUX_FUNC_IMPL(uint64) GetUtcTimeUs()
 
 #endif
 
-WINUX_FUNC_IMPL(uint64) GetUtcTime( void )
+WINUX_FUNC_IMPL(time_t) GetUtcTime( void )
 {
     return time(NULL);
 }
