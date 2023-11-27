@@ -2,15 +2,15 @@ cmake_minimum_required(VERSION 2.8)
 
 project(CodeLines)
 
-aux_source_directory(main/src/winux WINUX_SRCS)
-add_library(winux STATIC ${WINUX_SRCS})
+aux_source_directory(main/src/winux winux_SRCS)
+add_library(winux STATIC ${winux_SRCS})
 target_include_directories(winux PUBLIC main/include/winux)
 if(UNIX)
     target_compile_options(winux PRIVATE -ffunction-sections -fdata-sections)
 endif()
 
-aux_source_directory(main/src MAIN_SRCS)
-add_executable(CodeLines ${MAIN_SRCS})
+aux_source_directory(main/src main_SRCS)
+add_executable(CodeLines ${main_SRCS})
 target_include_directories(CodeLines PRIVATE main/include)
 target_link_libraries(CodeLines PRIVATE winux)
 
