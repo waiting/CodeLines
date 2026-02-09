@@ -16,7 +16,7 @@ env:
   BUILD_CONFIGURATION: Release
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -37,3 +37,52 @@ jobs:
       # Add additional options to the MSBuild command line here (like platform or verbosity level).
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
       run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} ${{env.SOLUTION_FILE_PATH}}
+    
+    - name: Create artifacts directory
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: New-Item -ItemType Directory -Path "$env:GITHUB_WORKSPACE\artifacts" -Force
+      shell: powershell
+
+    - name: Collect built .exe files
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: |
+        $exeFiles = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Filter *.exe -Recurse -ErrorAction SilentlyContinue
+        if ($exeFiles) {
+          $exeFiles | ForEach-Object { Copy-Item $_.FullName -Destination "$env:GITHUB_WORKSPACE\artifacts" -Force }
+        } else {
+          Write-Host "No .exe files found in workspace."
+        }
+      shell: powershell
+
+    - name: Upload executables artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: CodeLines-executables
+        path: artifacts
+
+    - name: Compress artifacts
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: Compress-Archive -Path "$env:GITHUB_WORKSPACE\artifacts\*" -DestinationPath "$env:GITHUB_WORKSPACE\artifacts\CodeLines-executables.zip" -Force
+      shell: powershell
+
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ github.run_number }}
+        release_name: CodeLines ${{ github.run_number }}
+        body: Automated build from ${{ github.sha }}
+        draft: false
+        prerelease: false
+
+    - name: Upload release asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/CodeLines-executables.zip
+        asset_name: CodeLines-executables.zip
+        asset_content_type: application/zip
