@@ -24,6 +24,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.0.2
@@ -65,19 +67,46 @@ jobs:
       run: Compress-Archive -Path "$env:GITHUB_WORKSPACE\artifacts\*" -DestinationPath "$env:GITHUB_WORKSPACE\artifacts\CodeLines-executables.zip" -Force
       shell: powershell
 
+    - name: Check artifacts zip
+      id: check_artifacts
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: |
+        if (Test-Path "$env:GITHUB_WORKSPACE\artifacts\CodeLines-executables.zip") {
+          echo "zip_exists=true" >> $env:GITHUB_OUTPUT
+        } else {
+          echo "zip_exists=false" >> $env:GITHUB_OUTPUT
+        }
+      shell: powershell
+
+    - name: Determine next semver tag
+      id: next_tag
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: |
+        git fetch --tags --prune
+        $tag = git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | Select-Object -First 1
+        if (-not $tag) {
+          $new = 'v0.1.0'
+        } else {
+          if ($tag -notmatch '^v(\d+)\.(\d+)\.(\d+)$') { $new = 'v0.1.0' } else { $major=$matches[1]; $minor=$matches[2]; $patch=[int]$matches[3]+1; $new = "v$major.$minor.$patch" }
+        }
+        echo "next_tag=$new" >> $env:GITHUB_OUTPUT
+      shell: powershell
+
     - name: Create GitHub Release
       id: create_release
+      if: steps.check_artifacts.outputs.zip_exists == 'true'
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: v${{ github.run_number }}
-        release_name: CodeLines ${{ github.run_number }}
+        tag_name: ${{ steps.next_tag.outputs.next_tag }}
+        release_name: CodeLines ${{ steps.next_tag.outputs.next_tag }}
         body: Automated build from ${{ github.sha }}
         draft: false
         prerelease: false
 
     - name: Upload release asset
+      if: steps.check_artifacts.outputs.zip_exists == 'true'
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
